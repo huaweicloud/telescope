@@ -1,0 +1,160 @@
+#!/bin/bash
+### BEGIN INIT INFO
+# Provides:          telescope
+# Required-Start:
+# Required-Stop:
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: telescope agent
+# Description:telescope is agent which can collect lts and ces data
+### END INIT INFO
+
+# chkconfig:2345 10 90
+BIN_DIR='/usr/local/telescope'
+# 0: running normal 1,2,3: running abnormal
+getStatus()
+{
+    PARENT_PIDS=($(pgrep -l -f -P 1,0 "telescope$" | awk '{print $1}'))
+    CHILD_PIDS=()
+
+    for ppid in ${PARENT_PIDS[*]}
+    do
+       CHILD_PIDS=(${CHILD_PIDS[*]} $(pgrep -l -f -P "${ppid}" "telescope$" | awk '{print $1}'))
+    done
+    if [ ${#PARENT_PIDS[*]} == 1 -a ${#CHILD_PIDS[*]} == 1 ]; then
+       return 0
+    fi
+    if [ ${#PARENT_PIDS[*]} == 0 -a ${#CHILD_PIDS[*]} == 0 ]; then
+      # all telescope process is stopped
+       return 1
+    elif [ ${#PARENT_PIDS[*]} == 0 -o ${#CHILD_PIDS[*]} == 0 ]; then 
+      # "Daemon parent process or Business child process telescope is not running"
+       return 2
+    else
+       echo "The running parent process: ${PARENT_PIDS[*]}, the running child process: ${CHILD_PIDS[*]}"
+       return 3
+    fi
+
+}
+
+# 0: start success 1: start failed
+checkStartStatus()
+{
+    PARENT_PIDS=($(pgrep -l -f -P "$$" "telescope$" | awk '{print $1}'))
+    CHILD_PIDS=()
+
+    for ppid in ${PARENT_PIDS[*]}
+    do
+       CHILD_PIDS=(${CHILD_PIDS[*]} $(pgrep -l -f -P "${ppid}" "telescope$" | awk '{print $1}'))
+    done
+    if [ ${#PARENT_PIDS[*]} == 1 -a ${#CHILD_PIDS[*]} == 1 ]; then
+       return 0
+    else
+       return 1
+    fi
+
+}
+
+checkStatus()
+{
+    getStatus
+    status=$?
+    if [ ${status} == 0 ]; then
+        echo "Telescope process is running well."
+    elif [ ${status} == 1 ]; then
+        echo "Telescope process is not running."
+    elif [ ${status} == 2 ]; then
+        echo "Daemon parent process or Business child process telescope is not running."
+    else
+        echo "Telescope process run error, please check and restart again." 
+    fi 
+}
+
+startProc()
+{
+    getStatus
+    status=$?
+    if [ ${status} != 1 ]; then
+        echo "Telescope process has been already running, please use restart command."
+    else
+        echo "Starting telescope..."
+        cd ${BIN_DIR}/bin
+        nohup ./telescope >nohup.out 2>&1 &
+        sleep 5
+        checkStartStatus
+        startStatus=$?
+        if [ ${startStatus} == 0 ]; then
+            echo "Telescope process starts successfully."
+        else 
+            echo "Telescope process starts failed."
+        fi
+    fi        
+}
+
+stopProc()
+{
+    echo "Stopping telescope..."
+    getStatus
+    status=$?
+    if [ ${status} == 1 ]; then
+      echo "Telescope process is not running."
+    else
+      PIDS=$(ps -ef | grep telescope$ | grep -v grep|awk '{print $2}')
+      for i in $(seq 3); do
+        kill ${PIDS}
+        sleep 10
+        #check process is whether stopped or not 
+        getStatus
+        status=$?
+        if [ ${status} == 1 ]; then 
+           break
+        elif [ ${i} == 3 ]; then
+		   kill -9 ${PIDS}
+        fi
+      done
+      getStatus
+      status=$?
+      if [ ${status} == 1 ]; then
+            echo "Stop telescope process successfully"
+      else
+            echo "Stop telescope process failed"
+      fi
+    fi
+}
+
+restartProc()
+{
+    echo "Restarting telescope..."
+    getStatus
+    status=$?
+    #stop
+    if [ ${status} != 1 ]; then
+        stopProc
+    fi
+    #start
+    startProc
+}
+
+case "$1" in
+    start)
+    startProc
+    ;;
+    stop)
+    stopProc
+    ;;
+    restart)
+    restartProc
+    ;;
+    status)
+    checkStatus
+    ;;
+    -h)
+    echo $"Usage: $0 { start | stop | restart | status | -h for help}"
+    ;;
+    *)
+    echo $"Usage: $0 { start | stop | restart | status | -h for help}"
+    ;;
+esac
+ 
+exit 0
+

@@ -1,2 +1,1 @@
-# telescope
-Agent for clouds resources detailed monitoring
+# One Cloud, One Agent.

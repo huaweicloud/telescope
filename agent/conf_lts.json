@@ -1,0 +1,19 @@
+{  
+   "Endpoint":"https://lts-api.cn-north-1.hwclouds.com",
+   "Groups":[  
+      {  
+         "GroupId":"",
+         "Topics":[  
+            {  
+               "LogTopicId":"",
+               "Path":"",
+               "TimeExtractPattern":"YYYY-MM-DD hh:mm:ss",
+               "SingleLineLog":false,
+               "MultiLineLogMarkTimePattern":"YYYY-MM-DD hh:mm:ss",
+               "MultiLineLogMarkRegex":"",
+               "IsOsLog":false
+            }
+         ]
+      }
+   ]
+}

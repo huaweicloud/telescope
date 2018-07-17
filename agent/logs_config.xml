@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<root>
+	<common>
+		<![CDATA[
+			<seelog minlevel="info">
+		 		<outputs formatid="common">
+        			<rollingfile type="size" filename="../log/common.log" maxsize="20000000" maxrolls="5"/>
+    			</outputs>
+    			<formats>
+        			<format id="common" format="%Date/%Time [%LEV] [%File:%Line] %Msg%r%n" />
+    			</formats>
+			</seelog>
+		]]>
+	</common>
+	<lts>
+		<![CDATA[
+			<seelog minlevel="info">
+				<outputs formatid="lts">
+					<rollingfile type="size" filename="../log/lts.log" maxsize="20000000" maxrolls="5"/>
+				</outputs>
+				<formats>
+					<format id="lts" format="%Date/%Time [%LEV] [%File:%Line] %Msg%r%n" />
+				</formats>
+			</seelog>
+		]]>
+	</lts>
+	<ces>
+		<![CDATA[
+			<seelog minlevel="info">
+				<outputs formatid="ces">
+					<rollingfile type="size" filename="../log/ces.log" maxsize="20000000" maxrolls="5"/>
+				</outputs>
+				<formats>
+					<format id="ces" format="%Date/%Time [%LEV] [%File:%Line] %Msg%r%n" />
+				</formats>
+			</seelog>
+		]]>
+	</ces>
+</root>
