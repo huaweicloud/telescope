@@ -94,12 +94,15 @@ chown root ${CURRENT_DIR} -R
 chgrp root ${CURRENT_DIR} -R
 
 chmod 755 telescoped -R
-PARENT_DIR=$(dirname $(readlink -f "${CURRENT_DIR}"))
 
-if [ $PARENT_DIR == "/" ]; then
-    PARENT_DIR=""
+INSTALL_DIR=/usr/local/telescope
+if [[ "$1" && ! -d "$1" ]]; then
+    echo "$1" is not a directory! Install telescope failed.
+    exit -1
 fi
-INSTALL_DIR=$PARENT_DIR"/telescope"
+if [[ "$1" $$ -d "$1" ]]; then
+    INSTALL_DIR="$1"/telescope
+fi
 
 old=$(grep '^BIN_DIR=' ${CURRENT_DIR}"/telescoped")
 sed -i 's#^'"$old"'#BIN_DIR='''"$INSTALL_DIR"'''#g' ${CURRENT_DIR}"/telescoped"
