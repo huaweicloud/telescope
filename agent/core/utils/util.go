@@ -502,7 +502,7 @@ func HTTPSend(client *http.Client, req *http.Request, service string) (*http.Res
 
 func generateAuthHeader(req *http.Request, service string) (*http.Request, error) {
 	nowTime := time.Unix(time.Now().Unix(), 0)
-	x_sdk_date := nowTime.Format(BasicDateFormat)
+	x_sdk_date := nowTime.UTC().Format(BasicDateFormat)
 	req.Header.Set("Content-Type", "application/json; charset=UTF-8")
 	req.Header.Set(HeaderXDate, x_sdk_date)
 	req.Header.Set(HeaderProjectId, GetConfig().ProjectId)
