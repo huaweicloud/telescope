@@ -90,12 +90,7 @@ else
     rm -f /etc/init.d/telescoped
 fi
 
-PARENT_DIR=$(readlink -f ..)
-
-if [ $PARENT_DIR == "/" ]; then
-    PARENT_DIR=""
-fi
-INSTALL_DIR=$PARENT_DIR"/telescope"
+INSTALL_DIR=$CURRENT_DIR"/../telescope"
 #delete install directory
 rm -rf $INSTALL_DIR
 
