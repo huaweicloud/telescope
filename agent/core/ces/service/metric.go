@@ -180,10 +180,10 @@ func SendMetricTask(data, agRes chan *model.InputMetric) {
 		select {
 		case metricDataOrigin := <-data:
 			logs.GetCesLogger().Debugf("origin data is: %v", *metricDataOrigin)
-			report.SendMetricData(client, BuildURL(cesUtils.PostRawMetricDataURI), metricDataOrigin, false)
+			go report.SendMetricData(client, BuildURL(cesUtils.PostRawMetricDataURI), metricDataOrigin, false)
 		case metricDataAggregate := <-agRes:
 			logs.GetCesLogger().Debugf("aggregate data is %v", *metricDataAggregate)
-			report.SendMetricData(client, BuildURL(cesUtils.PostAggregatedMetricDataURI), metricDataAggregate, true)
+			go report.SendMetricData(client, BuildURL(cesUtils.PostAggregatedMetricDataURI), metricDataAggregate, true)
 		}
 
 	}
