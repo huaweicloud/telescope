@@ -28,11 +28,8 @@ type FileStates struct {
 	States []FileState
 }
 
-// findPreviousState returns the previous state fo the file
-// In case no previous state exists, return empty
 func (s *FileStates) FindPrevious(newState FileState) *FileState {
 	for index := range s.States {
-		// This is using the FileStateOS for comparison as FileInfo identifiers can only be fetched for existing files
 		if s.States[index].FileStateOS.IsSame(newState.FileStateOS) && strings.Compare(s.States[index].FingerPrint, newState.FingerPrint) == 0 {
 			return &s.States[index]
 		}
@@ -40,23 +37,17 @@ func (s *FileStates) FindPrevious(newState FileState) *FileState {
 	return nil
 }
 
-// IsSame file checks if the files are identical
 func (fs StateOS) IsSame(state StateOS) bool {
 	return fs.IdxHi == state.IdxHi && fs.IdxLo == state.IdxLo && fs.Vol == state.Vol
 }
 
-// GetOSState returns the platform specific StateOS
 func GetOSState(info os.FileInfo) StateOS {
-
 	os.SameFile(info, info)
-
 	fileStat := reflect.ValueOf(info).Elem()
-
 	fileState := StateOS{
 		IdxHi: uint64(fileStat.FieldByName("idxhi").Uint()),
 		IdxLo: uint64(fileStat.FieldByName("idxlo").Uint()),
 		Vol:   uint64(fileStat.FieldByName("vol").Uint()),
 	}
-
 	return fileState
 }
