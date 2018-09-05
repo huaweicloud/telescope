@@ -2,20 +2,16 @@ package upgrade
 
 import (
 	"crypto/md5"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/huaweicloud/telescope/agent/core/logs"
+	"github.com/huaweicloud/telescope/agent/core/utils"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
-
-	"github.com/huaweicloud/telescope/agent/core/logs"
-	"github.com/huaweicloud/telescope/agent/core/utils"
 )
 
 var AgentHome string
@@ -84,19 +80,9 @@ func Download(url string, version string, md5str string) error {
 	info := Info{Version: version, File: tmpFilePath}
 
 	//get new package
-	transport := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: transport, Timeout: utils.HTTP_CLIENT_TIME_OUT * time.Second}
-	resp, err := client.Get(url)
+	bytes, err := utils.HTTPGet(url)
 	if err != nil {
 		logs.GetLogger().Errorf("Fetch new package failed, err: %s.", err.Error())
-		return err
-	}
-
-	bytes, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		logs.GetLogger().Errorf("Read new package failed, err: %s.", err.Error())
 		return err
 	}
 

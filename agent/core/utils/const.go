@@ -1,6 +1,7 @@
 package utils
 
 const HB_CRON_JOB_TIME_SECOND = 60
+const DETAIL_DATA_CRON_JOB_TIME_SECOND = 10
 const HTTP_CLIENT_TIME_OUT = 30
 const POST_HEART_BEAT_URI = "/agent-status"
 

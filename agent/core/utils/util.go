@@ -6,12 +6,14 @@ import (
 	"bufio"
 	"compress/gzip"
 	"crypto/md5"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"path"
 	"runtime"
 	"strconv"
+	"sync"
 
 	"encoding/json"
 
@@ -23,10 +25,14 @@ import (
 	"strings"
 	"time"
 
-	"os/user"
-
 	"github.com/huaweicloud/telescope/agent/core/logs"
+	reuse "github.com/libp2p/go-reuseport"
+	"os/user"
 )
+
+var HTTPClient *http.Client
+var clientMutex = new(sync.Mutex)
+var CLIENT_POINT = 0
 
 // limit float number to two decimal points
 func Limit2Decimal(number float64) float64 {
@@ -472,22 +478,28 @@ func IsFileExist(path string) bool {
 }
 
 // HTTPGet get result by http
-func HTTPGet(url string) (string, error) {
-	resp, err := http.Get(url)
+func HTTPGet(url string) ([]byte, error) {
+	client := GetHttpClient()
+	request, rErr := http.NewRequest("GET", url, nil)
+	if rErr != nil{
+		logs.GetLogger().Errorf("Create request Error:",rErr.Error())
+		return []byte{}, rErr
+	}
+	resp, err := client.Do(request)
 	if err != nil {
-		return "", err
+		return []byte{}, err
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return "", err
+		return []byte{}, err
 	}
-	return string(body), nil
+	return body, nil
 }
 
-func HTTPSend(client *http.Client, req *http.Request, service string) (*http.Response, error) {
-
+func HTTPSend(req *http.Request, service string) (*http.Response, error) {
+	client := GetHttpClient()
 	authReq, _ := generateAuthHeader(req, service)
 	res, err := client.Do(authReq)
 
@@ -498,6 +510,33 @@ func HTTPSend(client *http.Client, req *http.Request, service string) (*http.Res
 	}
 
 	return res, err
+}
+
+func GetHttpClient() *http.Client{
+	clientMutex.Lock()
+	defer clientMutex.Unlock()
+
+	if HTTPClient != nil && CLIENT_POINT == GetClientPort(){
+		return HTTPClient
+	}
+
+	CLIENT_POINT = GetClientPort()
+
+	transport := &http.Transport{
+		TLSClientConfig:&tls.Config{InsecureSkipVerify:true},
+		Dial:ReuseDial,
+	}
+	HTTPClient = &http.Client{Transport:transport}
+	logs.GetLogger().Infof("New client had create, CLIENT_POINT %s, GetClientPort:%s", CLIENT_POINT, GetClientPort())
+	return HTTPClient
+}
+
+func ReuseDial(network, addr string)(net.Conn, error){
+	dialPort := strconv.Itoa(CLIENT_POINT)
+	if !reuse.Available(){
+		dialPort = "0"
+	}
+	return reuse.Dial(network, "0.0.0.0:" + dialPort, addr)
 }
 
 func generateAuthHeader(req *http.Request, service string) (*http.Request, error) {

@@ -2,7 +2,6 @@ package heartbeat
 
 import (
 	"bytes"
-	"crypto/tls"
 	"encoding/json"
 	"io/ioutil"
 	"net/http"
@@ -58,13 +57,9 @@ func (hb *HeartBeat) ProduceHeartBeat(heartbeat chan *channel.HBEntity) {
 
 // Start the control service, it will keep receiving the heartbeat and re-send it to server
 func (hb *HeartBeat) ConsumeHeartBeat(heartbeat chan *channel.HBEntity) {
-	transport := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: transport, Timeout: utils.HTTP_CLIENT_TIME_OUT * time.Second}
 	for {
 		HBData := <-heartbeat
-		hbResponse := sendHeartBeat(client, buildHeartBeatUrl(utils.POST_HEART_BEAT_URI), HBData)
+		hbResponse := sendHeartBeat(buildHeartBeatUrl(utils.POST_HEART_BEAT_URI), HBData)
 		if hbResponse != nil {
 			updateAgent(hbResponse)
 		} else {
@@ -91,11 +86,7 @@ func buildHeartBeatUrl(uri string) string {
 }
 
 func SendSignalHeartBeat(hb *channel.HBEntity) {
-	transport := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: transport, Timeout: utils.HTTP_CLIENT_TIME_OUT * time.Second}
-	sigHBResponse := sendHeartBeat(client, buildHeartBeatUrl(utils.POST_HEART_BEAT_URI), hb)
+	sigHBResponse := sendHeartBeat(buildHeartBeatUrl(utils.POST_HEART_BEAT_URI), hb)
 
 	if sigHBResponse != nil {
 		logs.GetLogger().Info("Success to send agent signal hearbeat.")
@@ -105,7 +96,7 @@ func SendSignalHeartBeat(hb *channel.HBEntity) {
 }
 
 //send heartbeat to server
-func sendHeartBeat(client *http.Client, url string, hb *channel.HBEntity) *channel.HBResponse {
+func sendHeartBeat(url string, hb *channel.HBEntity) *channel.HBResponse {
 	hbEntityBytes, err := json.Marshal(*hb)
 	if err != nil {
 		logs.GetLogger().Infof("Failed marshall ces heartbeat, error is %s", err.Error())
@@ -118,7 +109,7 @@ func sendHeartBeat(client *http.Client, url string, hb *channel.HBEntity) *chann
 		return nil
 	}
 
-	res, err := utils.HTTPSend(client, request, "HB")
+	res, err := utils.HTTPSend(request, "HB")
 
 	if err != nil {
 		logs.GetLogger().Errorf("Failed to request for server, error is %s", err.Error())

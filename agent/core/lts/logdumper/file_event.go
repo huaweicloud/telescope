@@ -51,7 +51,7 @@ type FileEvent struct {
 }
 
 //send the log event from file event to server
-func (fileEvent *FileEvent) SendLogDataToServer(client *http.Client) {
+func (fileEvent *FileEvent) SendLogDataToServer() {
 	logEventMessage := fileEvent.LogEvent
 	logBytes, err := jsonx.Marshal(logEventMessage)
 	if err != nil {
@@ -75,9 +75,9 @@ func (fileEvent *FileEvent) SendLogDataToServer(client *http.Client) {
 	//send logs to server,if due to internet issue, should start retry,there are 2 scenario about internet issue
 	//1.internet issue from agent to APIGW
 	//2.internet issue from APIGW to Logtank Server, but this case Agent can get 500 status code
-	res := sendLogBytes(client, uri, logBytes, true)
+	res := sendLogBytes(uri, logBytes, true)
 	defer res.Body.Close()
-	statusCode, errorResponse, responseStr := handleResponse(client, uri, logBytes, true, res)
+	statusCode, errorResponse, responseStr := handleResponse(uri, logBytes, true, res)
 	fileEvent.ResStatusCode = statusCode
 	fileEvent.ErrRes = errorResponse
 	fileEvent.ResponseStr = responseStr
@@ -100,7 +100,7 @@ func buildRequest(httpContentEncoding bool, uri string, logBytes []byte) *http.R
 }
 
 //send log data to server, if internet error, start to retry
-func sendLogBytes(client *http.Client, uri string, logBytes []byte, httpContentEncoding bool) (res *http.Response) {
+func sendLogBytes(uri string, logBytes []byte, httpContentEncoding bool) (res *http.Response) {
 	resendCount := 0
 	retry := lts_utils.PUT_LOG_MAX_RETRY
 
@@ -110,7 +110,7 @@ func sendLogBytes(client *http.Client, uri string, logBytes []byte, httpContentE
 		return
 	}
 	var err error
-	res, err = utils.HTTPSend(client, request, lts_utils.SERVICE)
+	res, err = utils.HTTPSend(request, lts_utils.SERVICE)
 	for {
 		if err == nil {
 			break
@@ -120,13 +120,13 @@ func sendLogBytes(client *http.Client, uri string, logBytes []byte, httpContentE
 			time.Sleep(lts_utils.PUT_LOG_RETRY_INTERVAL_SEC * time.Second)
 			logs.GetLtsLogger().Errorf("Data send %d times,server is not available beacuse:%s.", lts_utils.PUT_LOG_MAX_RETRY, err.Error())
 			request = buildRequest(httpContentEncoding, uri, logBytes)
-			res, err = utils.HTTPSend(client, request, lts_utils.SERVICE)
+			res, err = utils.HTTPSend(request, lts_utils.SERVICE)
 			resendCount++
 		} else {
 			time.Sleep(lts_utils.PUT_LOG_RETRY_INTERVAL_MS * time.Millisecond)
 			logs.GetLtsLogger().Errorf("Data send %d times,server is not available beacuse:%s.", lts_utils.PUT_LOG_MAX_RETRY, err.Error())
 			request = buildRequest(httpContentEncoding, uri, logBytes)
-			res, err = utils.HTTPSend(client, request, lts_utils.SERVICE)
+			res, err = utils.HTTPSend(request, lts_utils.SERVICE)
 			resendCount++
 		}
 	}
@@ -135,7 +135,7 @@ func sendLogBytes(client *http.Client, uri string, logBytes []byte, httpContentE
 
 //according to the response,go on the flow.
 //There is one special scenario APIGW return a 500 response which is not from logtank server.
-func handleResponse(client *http.Client, uri string, logBytes []byte, httpContentEncoding bool, res *http.Response) (int, ErrorResponse, string) {
+func handleResponse(uri string, logBytes []byte, httpContentEncoding bool, res *http.Response) (int, ErrorResponse, string) {
 	resendCount := 0
 	retry := lts_utils.PUT_LOG_MAX_RETRY
 	response := ErrorResponse{}
@@ -150,7 +150,7 @@ func handleResponse(client *http.Client, uri string, logBytes []byte, httpConten
 			_ = jsonx.Unmarshal(resBodyBytes, &response)
 			if res.StatusCode >= http.StatusInternalServerError {
 				logs.GetLtsLogger().Warnf("Server error [%v], retry... ", http.StatusInternalServerError)
-				res = sendLogBytes(client, uri, logBytes, httpContentEncoding)
+				res = sendLogBytes(uri, logBytes, httpContentEncoding)
 			} else {
 				logs.GetLtsLogger().Errorf("Status code is %v, response is %s", res.StatusCode, string(resBodyBytes))
 				return res.StatusCode, response, string(resBodyBytes)
@@ -161,7 +161,7 @@ func handleResponse(client *http.Client, uri string, logBytes []byte, httpConten
 			resBodyBytes, _ := ioutil.ReadAll(res.Body)
 			_ = jsonx.Unmarshal(resBodyBytes, &response)
 			if res.StatusCode >= http.StatusInternalServerError {
-				res = sendLogBytes(client, uri, logBytes, httpContentEncoding)
+				res = sendLogBytes(uri, logBytes, httpContentEncoding)
 			} else {
 				logs.GetLtsLogger().Errorf("Status code is %v, response is %s", res.StatusCode, string(resBodyBytes))
 				return res.StatusCode, response, string(resBodyBytes)
