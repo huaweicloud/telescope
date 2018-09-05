@@ -1,8 +1,6 @@
 package services
 
 import (
-	"crypto/tls"
-	"net/http"
 	"time"
 
 	"github.com/huaweicloud/telescope/agent/core/ces/aggregate"
@@ -13,7 +11,6 @@ import (
 	cesUtils "github.com/huaweicloud/telescope/agent/core/ces/utils"
 	"github.com/huaweicloud/telescope/agent/core/logs"
 	"github.com/huaweicloud/telescope/agent/core/utils"
-	"github.com/robfig/cron"
 	"github.com/shirou/gopsutil/process"
 )
 
@@ -34,15 +31,12 @@ func StartMetricCollectTask(data chan *model.InputMetric, agData chan model.Inpu
 
 	counter := 0
 
-	nowSecond := time.Now().Second()
+	time.Sleep(time.Duration(5) * time.Second)
 
-	if nowSecond != 0 {
-		time.Sleep(time.Duration(59-(nowSecond%60)) * time.Second)
-	}
+	cronTime := utils.DETAIL_DATA_CRON_JOB_TIME_SECOND//set default
+	ticker := time.NewTicker(time.Duration(cronTime) * time.Second)
 
-	c := cron.New()
-
-	c.AddFunc("*/10 * * * * *", func() {
+	for _ = range ticker.C{
 		if config.GetConfig().Enable {
 			collectTime := time.Now().Unix() * 1000
 
@@ -89,7 +83,7 @@ func StartMetricCollectTask(data chan *model.InputMetric, agData chan model.Inpu
 
 				newMetricSliceArr := make([]model.InputMetricSlice, len(collectorList)+len(enableProcessList))
 				copy(newMetricSliceArr, metricSliceArr)
-				copy(newMetricSliceArr[len(collectorList):(len(collectorList)+len(enableProcessList))], processSliceArr)
+				copy(newMetricSliceArr[len(collectorList):(len(collectorList) + len(enableProcessList))], processSliceArr)
 				metricSliceArr = newMetricSliceArr
 			}
 
@@ -106,10 +100,7 @@ func StartMetricCollectTask(data chan *model.InputMetric, agData chan model.Inpu
 				counter = 0
 			}
 		}
-	})
-
-	c.Start()
-
+	}
 }
 
 // StartAggregateTask task for aggregate metric in 1 minute
@@ -171,19 +162,16 @@ func BuildURL(destURI string) string {
 
 // SendMetricTask task for post metric data
 func SendMetricTask(data, agRes chan *model.InputMetric) {
-	transport := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: transport, Timeout: utils.HTTP_CLIENT_TIME_OUT * time.Second}
 	for {
 
 		select {
 		case metricDataOrigin := <-data:
 			logs.GetCesLogger().Debugf("origin data is: %v", *metricDataOrigin)
-			go report.SendMetricData(client, BuildURL(cesUtils.PostRawMetricDataURI), metricDataOrigin, false)
+			go report.SendMetricData(BuildURL(cesUtils.PostRawMetricDataURI), metricDataOrigin, false)
 		case metricDataAggregate := <-agRes:
 			logs.GetCesLogger().Debugf("aggregate data is %v", *metricDataAggregate)
-			go report.SendMetricData(client, BuildURL(cesUtils.PostAggregatedMetricDataURI), metricDataAggregate, true)
+			time.Sleep(5 * time.Second)
+			go report.SendMetricData(BuildURL(cesUtils.PostAggregatedMetricDataURI), metricDataAggregate, true)
 		}
 
 	}

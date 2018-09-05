@@ -12,7 +12,7 @@ import (
 )
 
 // SendMetricData used for ces post metric-data api
-func SendMetricData(client *http.Client, url string, data *model.InputMetric, isAggregate bool) {
+func SendMetricData(url string, data *model.InputMetric, isAggregate bool) {
 
 	metricData, err := json.Marshal(model.BuildCesMetricData(data, isAggregate))
 
@@ -26,7 +26,7 @@ func SendMetricData(client *http.Client, url string, data *model.InputMetric, is
 		logs.GetCesLogger().Errorf("Create request Error:", rErr.Error())
 	}
 
-	res, err := utils.HTTPSend(client, request, ces_utils.Service)
+	res, err := utils.HTTPSend(request, ces_utils.Service)
 
 	if err != nil {
 		logs.GetCesLogger().Errorf("request error %s", err.Error())
@@ -42,7 +42,7 @@ func SendMetricData(client *http.Client, url string, data *model.InputMetric, is
 }
 
 // SendProcessInfo used for ces post process-info api
-func SendProcessInfo(client *http.Client, url string, plist model.ChProcessList) {
+func SendProcessInfo(url string, plist model.ChProcessList) {
 
 	processData, err := json.Marshal(model.BuildProcessInfoByList(plist))
 
@@ -56,7 +56,7 @@ func SendProcessInfo(client *http.Client, url string, plist model.ChProcessList)
 		logs.GetCesLogger().Errorf("Create request Error:", rErr.Error())
 	}
 
-	res, err := utils.HTTPSend(client, request, ces_utils.Service)
+	res, err := utils.HTTPSend(request, ces_utils.Service)
 
 	if err != nil {
 		logs.GetCesLogger().Errorf("request error %s", err.Error())

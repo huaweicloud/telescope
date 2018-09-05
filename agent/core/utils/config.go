@@ -17,6 +17,7 @@ type GeneralConfig struct {
 	ProjectId       string
 	AccessKey       string
 	SecretKey       string
+	ClientPort		int
 	AKSKToken       string
 	RegionId        string
 	ExternalService string
@@ -45,7 +46,9 @@ var (
 	retry_count        = 3
 	buse_api_aksk      = true
 	//当前方式连续失败调用次数
-	now_method_count = 0
+	now_method_count 	= 	0
+	configClientPort	=	0
+	DEFAULT_CLIENT_PORT = 	63355
 )
 
 // Read the config from conf.json
@@ -66,6 +69,7 @@ func ReadConfig() (*GeneralConfig, error) {
 		logs.GetLogger().Errorf("Parsing general configuration file error: %s", err)
 		return nil, Errors.ConfigFileValidationError
 	}
+	configClientPort = conf.ClientPort
 	logs.GetLogger().Infof("Successfully loaded general configuration file")
 
 	// update conf by openstack api
@@ -185,17 +189,17 @@ func getConfFromOpenstack() (*MetaData, error) {
 		return nil, err
 	}
 
-	conf.InstanceId, err = jsonparser.GetString([]byte(metaData), "uuid")
+	conf.InstanceId, err = jsonparser.GetString(metaData, "uuid")
 	if err != nil {
 		return nil, err
 	}
-	conf.ProjectId, err = jsonparser.GetString([]byte(metaData), "project_id")
+	conf.ProjectId, err = jsonparser.GetString(metaData, "project_id")
 	if err != nil {
 		return nil, err
 	}
 
 	// get if it is BMS from meta_data
-	serviceName, _, _, err := jsonparser.Get([]byte(metaData), "meta", ces_utils.TagServiceBMS)
+	serviceName, _, _, err := jsonparser.Get(metaData, "meta", ces_utils.TagServiceBMS)
 	serviceNameStr := string(serviceName[:])
 	if err != nil {
 		return nil, err
@@ -221,7 +225,8 @@ func getAKSKFromOpenStack() (bool, error) {
 	for count := 0; count < retry_count; count++ {
 		err = nil
 		bAkSKStrValid = false
-		strAkskData, err = HTTPGet(OpenStackURL4AKSK)
+		bytes, err := HTTPGet(OpenStackURL4AKSK)
+		strAkskData = string(bytes)
 		if err == nil {
 			bAkSKStrValid = isOpenStackAKSKJsonValid(strAkskData)
 			if bAkSKStrValid {
@@ -324,4 +329,12 @@ func isOpenStackAKSKJsonValid(strAkskData string) bool {
 	}
 
 	return true
+}
+
+func GetClientPort()int{
+	// reserved port cannot used, 0 for random port
+	if configClientPort < 1024 && configClientPort > 0{
+		return DEFAULT_CLIENT_PORT
+	}
+	return configClientPort
 }

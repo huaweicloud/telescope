@@ -1,16 +1,11 @@
 package services
 
 import (
-	"github.com/huaweicloud/telescope/agent/core/logs"
-	"crypto/tls"
-	"net/http"
-	"time"
-
 	"github.com/huaweicloud/telescope/agent/core/ces/config"
 	"github.com/huaweicloud/telescope/agent/core/ces/model"
 	"github.com/huaweicloud/telescope/agent/core/ces/report"
 	cesUtils "github.com/huaweicloud/telescope/agent/core/ces/utils"
-	"github.com/huaweicloud/telescope/agent/core/utils"
+	"github.com/huaweicloud/telescope/agent/core/logs"
 )
 
 // CollectPluginTask cron job for collecting plugin data
@@ -42,15 +37,11 @@ func CollectPluginTask(data chan *model.InputMetric) {
 
 // SendPluginTask task for post plugin data
 func SendPluginTask(data chan *model.InputMetric) {
-	transport := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: transport, Timeout: utils.HTTP_CLIENT_TIME_OUT * time.Second}
 	for {
 
 		pluginData := <-data
 		logs.GetCesLogger().Debugf("Plugin metric data is %v", *pluginData)
-		report.SendMetricData(client, BuildURL(cesUtils.PostAggregatedMetricDataURI), pluginData, true)
+		report.SendMetricData(BuildURL(cesUtils.PostAggregatedMetricDataURI), pluginData, true)
 
 	}
 }

@@ -1,7 +1,6 @@
 package services
 
 import (
-	"crypto/tls"
 	"net/http"
 	"strings"
 	"time"
@@ -45,14 +44,10 @@ func StartExtractionTask() {
 
 //发送日志数据到服务端
 func StartDataService(data chan logdumper.FileEvent) {
-	transport := &http.Transport{
-		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-	}
-	client := &http.Client{Transport: transport, Timeout: utils.HTTP_CLIENT_TIME_OUT * time.Second}
 	for {
 		fileEvent := <-data
 		logs.GetLtsLogger().Infof("A group of logs from [%s] arrived and await to send to server...", fileEvent.FileState.FilePath)
-		fileEvent.SendLogDataToServer(client)
+		fileEvent.SendLogDataToServer()
 
 		if !fileEvent.SuccessPreProcessLogEvent {
 			logs.GetLtsLogger().Errorf("Failed to process log data from log file [%s], the log data is dismissed.", fileEvent.FileState.FilePath)
