@@ -98,7 +98,7 @@ func (d *DiskCollector) Collect(collectTime int64) *model.InputMetric {
 				fieldsG = append(fieldsG, model.Metric{MetricName: "disk_agt_read_requests_rate", MetricValue: float64(DeltaReadReq) / secondDuration, MetricPrefix: diskMountpoint})
 				fieldsG = append(fieldsG, model.Metric{MetricName: "disk_agt_write_bytes_rate", MetricValue: float64(DeltaWriteBytes) / secondDuration, MetricPrefix: diskMountpoint})
 				fieldsG = append(fieldsG, model.Metric{MetricName: "disk_agt_write_requests_rate", MetricValue: float64(DeltaWriteReq) / secondDuration, MetricPrefix: diskMountpoint})
-				fieldsG = append(fieldsG, model.Metric{MetricName: "disk_ioUtils", MetricValue: DeltaIOTime / secondDuration, MetricPrefix: diskMountpoint})
+				fieldsG = append(fieldsG, model.Metric{MetricName: "disk_ioUtils", MetricValue: 100 * DeltaIOTime / (secondDuration * 1000), MetricPrefix: diskMountpoint})
 			}
 
 			var diskWriteTime float64 = 0.0

@@ -85,7 +85,7 @@ func ReadConfig() (*GeneralConfig, error) {
 	}
 
 	if metaData != nil && (conf.ProjectId != metaData.ProjectId || conf.InstanceId != metaData.InstanceId) {
-		logs.GetLogger().Warnf("The projectId or instanceId of config.json is not consistent with metadata, use metadata.\n In conf.json, projectId is [%s], instanceId is [%s]. MetaData is %v", conf.ProjectId, conf.InstanceId, *metaData)
+		logs.GetLogger().Warnf("The projectId or instanceId of conf.json is not consistent with metadata, use metadata.\n In conf.json, projectId is [%s], instanceId is [%s]. MetaData is %v", conf.ProjectId, conf.InstanceId, *metaData)
 		conf.ProjectId = metaData.ProjectId
 		conf.InstanceId = metaData.InstanceId
 	}

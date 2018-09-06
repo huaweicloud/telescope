@@ -1,6 +1,6 @@
 [basic_infomation]
 projectName=telescope
-releaseVersion=1.0.10
+releaseVersion=1.0.11
 releaseStatus=RELEASED
 emailAddress=pmail_logtank@huawei.com
 

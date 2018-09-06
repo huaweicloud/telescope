@@ -21,22 +21,27 @@ function buildGoProject()
     export GOPATH=${WORKSPACE}
     
     OS="linux"
-    ARCH="amd64"
+    ARCH_LIST="amd64 arm64"
 
     OS_LIST="linux windows"
     for i in $OS_LIST;
     do
-    OS=$i
-    DAEMON_NAME="telescope"
-    AGENT_NAME="agent"
-    if [ ${OS} = "windows" ]; then
-        DAEMON_NAME="telescope.exe"
-        AGENT_NAME="agent.exe"
-    fi
-    build
-    assertExitCode $?
-    package $1
-    assertExitCode $?
+        for j in $ARCH_LIST;
+        do
+        OS=$i
+        ARCH=$j
+        DAEMON_NAME="telescope"
+        AGENT_NAME="agent"
+        if [ ${OS} = "windows" ]; then
+            ARCH="amd64"
+            DAEMON_NAME="telescope.exe"
+            AGENT_NAME="agent.exe"
+        fi
+        build
+        assertExitCode $?
+        package $1
+        assertExitCode $?
+        done
     done
 }
 

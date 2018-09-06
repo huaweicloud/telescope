@@ -527,7 +527,7 @@ func GetHttpClient() *http.Client{
 		}).DialContext,
 	}
 	HTTPClient = &http.Client{Transport:transport, Timeout: 10 * time.Second}
-	logs.GetLogger().Infof("New client had create, CLIENT_POINT %s, GetClientPort:%s", CLIENT_POINT, currentPoint)
+	logs.GetLogger().Infof("New client had create, CLIENT_POINT: %d, GetClientPort: %d", CLIENT_POINT, currentPoint)
 	CLIENT_POINT = currentPoint
 	return HTTPClient
 }
