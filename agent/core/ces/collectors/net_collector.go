@@ -75,12 +75,12 @@ func (n *NetCollector) Collect(collectTime int64) *model.InputMetric {
 	packetRecvRate := (nowStates.packetRecv - n.LastStates.packetRecv) / float64(secondDuration)
 
 	if totalRecvPacket != 0 {
-		packetErrInRate = (nowStates.errin - n.LastStates.errin) / totalRecvPacket / float64(secondDuration)
-		packetDropInRate = (nowStates.dropin - n.LastStates.dropin) / totalRecvPacket / float64(secondDuration)
+		packetErrInRate = 100 * (nowStates.errin - n.LastStates.errin) / totalRecvPacket / float64(secondDuration)
+		packetDropInRate = 100 * (nowStates.dropin - n.LastStates.dropin) / totalRecvPacket / float64(secondDuration)
 	}
 	if totalSentPacket != 0 {
-		packetErrOutRate = (nowStates.errout - n.LastStates.errout) / totalSentPacket / float64(secondDuration)
-		packetDropOutRate = (nowStates.dropout - n.LastStates.dropout) / totalSentPacket / float64(secondDuration)
+		packetErrOutRate = 100 * (nowStates.errout - n.LastStates.errout) / totalSentPacket / float64(secondDuration)
+		packetDropOutRate = 100 * (nowStates.dropout - n.LastStates.dropout) / totalSentPacket / float64(secondDuration)
 	}
 
 	logs.GetCesLogger().Debugf("bitRecvRate: %v bits/s, bitSentRate: %v bits/s, packetSentRate: %v Counts/s, packetRecvRate: %v Counts/s, collectime: %v", bitRecvRate, bitSentRate, packetSentRate, packetRecvRate, collectTime)
