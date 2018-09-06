@@ -61,6 +61,7 @@ type CesMetricData struct {
 type CesMetricDataArr []CesMetricData
 
 var metricUnitMap = map[string]string{
+	"cpu_usage":					 "%",
 	"cpu_usage_user":               "%",
 	"cpu_usage_system":             "%",
 	"cpu_usage_idle":               "%",
