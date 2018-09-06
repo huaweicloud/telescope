@@ -4,6 +4,6 @@
     "AccessKey": "",
     "SecretKey": "",
     "RegionId": "cn-north-1",
-    "ClientPort": 63355,
+    "ClientPort": 0,
     "PortNum":200
 }
