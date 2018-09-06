@@ -86,10 +86,11 @@ func GetTop5CpuProcessList() ChProcessList {
 		eachProcessInfo.Status = true
 		eachProcessInfo.Cmdline = oneCPUProcess.Cmdline
 
-		if len(oneCPUProcess.Cmdline) > cesUtils.MaxCmdlineLen {
-			oneCPUProcess.Cmdline = utils.SubStr(oneCPUProcess.Cmdline, cesUtils.MaxCmdlineLen-len(cesUtils.CmdlineSuffix))
-			oneCPUProcess.Cmdline = utils.ConcatStr(oneCPUProcess.Cmdline, cesUtils.CmdlineSuffix)
+		if len(eachProcessInfo.Cmdline) > cesUtils.MaxCmdlineLen {
+			eachProcessInfo.Cmdline = utils.SubStr(eachProcessInfo.Cmdline, cesUtils.MaxCmdlineLen-len(cesUtils.CmdlineSuffix))
+			eachProcessInfo.Cmdline = utils.ConcatStr(eachProcessInfo.Cmdline, cesUtils.CmdlineSuffix)
 		}
+
 		top5ChProcessList = append(top5ChProcessList, eachProcessInfo)
 	}
 	return top5ChProcessList
