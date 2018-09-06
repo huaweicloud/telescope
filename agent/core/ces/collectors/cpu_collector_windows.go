@@ -63,6 +63,7 @@ func (c *CPUCollector) Collect(collectTime int64) *model.InputMetric {
 		model.Metric{MetricName: "cpu_usage_system", MetricValue: cpuUsagSystem},
 		model.Metric{MetricName: "cpu_usage_idle", MetricValue: cpuUsagIdle},
 		model.Metric{MetricName: "cpu_usage_other", MetricValue: 100 - cpuUsagUser - cpuUsagSystem - cpuUsagIdle},
+		model.Metric{MetricName:"cpu_usage", MetricValue: 100 - cpuUsagIdle},
 	}
 	result.Data = fieldsG
 	result.CollectTime = collectTime
