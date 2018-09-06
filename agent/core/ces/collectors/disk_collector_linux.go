@@ -4,6 +4,7 @@ import (
 	"strings"
 	"sync"
 
+	cesdisk "github.com/huaweicloud/telescope/agent/core/ces/gopsutil/disk"
 	"github.com/huaweicloud/telescope/agent/core/ces/model"
 	"github.com/huaweicloud/telescope/agent/core/logs"
 	"github.com/shirou/gopsutil/disk"
@@ -35,6 +36,17 @@ func (d *DiskCollector) Collect(collectTime int64) *model.InputMetric {
 
 	diskPartitions, _ := disk.Partitions(false)
 	diskInfo, _ := disk.IOCounters()
+
+	if fsState, fsStateErr := cesdisk.GetFileSystemStatus(); fsStateErr != nil{
+		logs.GetCesLogger().Errorf("Failed to get filesystem state, error is: %v", fsStateErr)
+	}else{
+		for _, eachDisk := range diskPartitions{
+			diskMountpoint := eachDisk.Mountpoint
+			if fsState[disMountPoint].State != -1{
+				fieldsG = append(fieldsG, model.Metric{MetricName:"disk_fs_rwstate", MetricValue:float64(fsState[diskMountpoint].State), MetricPrefix : diskMountpoint})
+			}
+		}
+	}
 
 	for _, eachDisk := range diskPartitions {
 

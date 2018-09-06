@@ -107,6 +107,7 @@ var metricUnitMap = map[string]string{
 	"disk_writeTime":               "ms/Count",
 	"disk_readTime":                "ms/Count",
 	"disk_ioUtils":                 "%",
+	"disk_fs_rwstate":				 "",
 	"proc_cpu":                     "%",
 	"proc_mem":                     "%",
 	"proc_file":                    "Count",
