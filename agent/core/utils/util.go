@@ -516,18 +516,19 @@ func GetHttpClient() *http.Client{
 	clientMutex.Lock()
 	defer clientMutex.Unlock()
 
-	if HTTPClient != nil && CLIENT_POINT == GetClientPort(){
-		return HTTPClient
-	}
-
-	CLIENT_POINT = GetClientPort()
-
+	currentPoint := GetClientPort()
+	netAddr := &net.TCPAddr{Port:currentPoint}
 	transport := &http.Transport{
 		TLSClientConfig:&tls.Config{InsecureSkipVerify:true},
-		Dial:ReuseDial,
+		DisableKeepAlives:true,
+		DialContext:(&net.Dialer{
+			Timeout:	10 * time.Second,
+			LocalAddr:  netAddr,
+		}).DialContext,
 	}
-	HTTPClient = &http.Client{Transport:transport}
-	logs.GetLogger().Infof("New client had create, CLIENT_POINT %s, GetClientPort:%s", CLIENT_POINT, GetClientPort())
+	HTTPClient = &http.Client{Transport:transport, Timeout: 10 * time.Second}
+	logs.GetLogger().Infof("New client had create, CLIENT_POINT %s, GetClientPort:%s", CLIENT_POINT, currentPoint)
+	CLIENT_POINT = currentPoint
 	return HTTPClient
 }
 

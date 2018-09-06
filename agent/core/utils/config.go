@@ -2,6 +2,7 @@ package utils
 
 import (
 	"encoding/json"
+	"math/rand"
 	"os"
 	"strings"
 	"sync"
@@ -18,6 +19,7 @@ type GeneralConfig struct {
 	AccessKey       string
 	SecretKey       string
 	ClientPort		int
+	PortNum			int
 	AKSKToken       string
 	RegionId        string
 	ExternalService string
@@ -48,7 +50,7 @@ var (
 	//当前方式连续失败调用次数
 	now_method_count 	= 	0
 	configClientPort	=	0
-	DEFAULT_CLIENT_PORT = 	63355
+	configPortNum	    = 	63355
 )
 
 // Read the config from conf.json
@@ -70,6 +72,7 @@ func ReadConfig() (*GeneralConfig, error) {
 		return nil, Errors.ConfigFileValidationError
 	}
 	configClientPort = conf.ClientPort
+	configPortNum = conf.PortNum
 	logs.GetLogger().Infof("Successfully loaded general configuration file")
 
 	// update conf by openstack api
@@ -333,8 +336,17 @@ func isOpenStackAKSKJsonValid(strAkskData string) bool {
 
 func GetClientPort()int{
 	// reserved port cannot used, 0 for random port
-	if configClientPort < 1024 && configClientPort > 0{
-		return DEFAULT_CLIENT_PORT
+	if configClientPort < 1024 || configClientPort > 65535{
+		return 0
 	}
-	return configClientPort
+
+	if configPortNum <= 0{
+		configPortNum = 200
+	}
+
+	if configClientPort + configPortNum > 65535{
+		configPortNum = 65535 - configClientPort
+	}
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	return configClientPort + r.Intn(configPortNum)
 }
