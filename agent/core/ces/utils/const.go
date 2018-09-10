@@ -50,3 +50,6 @@ const MaxCmdlineLen = 4096
 
 // CmdlineSuffix const for process cmdline suffix
 const CmdlineSuffix = "..."
+
+// CmdlineSuffix const for process cmdline suffix
+const VolumePrefix = "volumeSlAsH"
