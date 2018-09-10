@@ -38,6 +38,7 @@ type DimensionType struct {
 type CesMeticExtraInfo struct {
 	OriginMetricName string `json:"origin_metric_name"`
 	MetricPrefix     string `json:"metric_prefix,omitempty"`
+	MetricType       string `json:"metric_type,omitempty"`
 }
 
 // MetricType the type for metric
@@ -61,60 +62,64 @@ type CesMetricData struct {
 type CesMetricDataArr []CesMetricData
 
 var metricUnitMap = map[string]string{
-	"cpu_usage":					 "%",
-	"cpu_usage_user":               "%",
-	"cpu_usage_system":             "%",
-	"cpu_usage_idle":               "%",
-	"cpu_usage_other":              "%",
-	"cpu_usage_nice":               "%",
-	"cpu_usage_iowait":             "%",
-	"cpu_usage_irq":                "%",
-	"cpu_usage_softirq":            "%",
-	"cpu_usage_steal":              "%",
-	"cpu_usage_guest":              "%",
-	"cpu_usage_guest_nice":         "%",
-	"mem_total":                    "GB",
-	"mem_available":                "GB",
-	"mem_used":                     "GB",
-	"mem_free":                     "GB",
-	"mem_usedPercent":              "%",
-	"mem_buffers":                  "GB",
-	"mem_cached":                   "GB",
-	"net_bitSent":                  "bits/s",
-	"net_bitRecv":                  "bits/s",
-	"net_packetSent":               "Counts/s",
-	"net_packetRecv":               "Counts/s",
-	"net_errin":                    "%",
-	"net_errout":                   "%",
-	"net_dropin":                   "%",
-	"net_dropout":                  "%",
-	"net_fifoin":                   "Bytes",
-	"net_fifoout":                  "Bytes",
-	"disk_total":                   "GB",
-	"disk_free":                    "GB",
-	"disk_used":                    "GB",
-	"disk_usedPercent":             "%",
-	"disk_inodesTotal":             "",
-	"disk_inodesUsed":              "",
-	"disk_inodesFree":              "",
-	"disk_inodesUsedPercent":       "%",
-	"disk_writeBytes":              "Bytes",
-	"disk_readBytes":               "Bytes",
-	"disk_iopsInProgress":          "Bytes",
-	"disk_agt_read_bytes_rate":     "Byte/s",
-	"disk_agt_read_requests_rate":  "Requests/Second",
-	"disk_agt_write_bytes_rate":    "Byte/s",
-	"disk_agt_write_requests_rate": "Requests/Second",
-	"disk_writeTime":               "ms/Count",
-	"disk_readTime":                "ms/Count",
-	"disk_ioUtils":                 "%",
-	"disk_fs_rwstate":				 "",
-	"proc_cpu":                     "%",
-	"proc_mem":                     "%",
-	"proc_file":                    "Count",
-	"gpu_performance_state":        "",
-	"gpu_usage_gpu":                "%",
-	"gpu_usage_mem":                "%",
+	"cpu_usage":                      "%",
+	"cpu_usage_user":                 "%",
+	"cpu_usage_system":               "%",
+	"cpu_usage_idle":                 "%",
+	"cpu_usage_other":                "%",
+	"cpu_usage_nice":                 "%",
+	"cpu_usage_iowait":               "%",
+	"cpu_usage_irq":                  "%",
+	"cpu_usage_softirq":              "%",
+	"cpu_usage_steal":                "%",
+	"cpu_usage_guest":                "%",
+	"cpu_usage_guest_nice":           "%",
+	"mem_total":                      "GB",
+	"mem_available":                  "GB",
+	"mem_used":                       "GB",
+	"mem_free":                       "GB",
+	"mem_usedPercent":                "%",
+	"mem_buffers":                    "GB",
+	"mem_cached":                     "GB",
+	"net_bitSent":                    "bit/s",
+	"net_bitRecv":                    "bit/s",
+	"net_packetSent":                 "Count/s",
+	"net_packetRecv":                 "Count/s",
+	"net_errin":                      "%",
+	"net_errout":                     "%",
+	"net_dropin":                     "%",
+	"net_dropout":                    "%",
+	"net_fifoin":                     "Bytes",
+	"net_fifoout":                    "Bytes",
+	"disk_total":                     "GB",
+	"disk_free":                      "GB",
+	"disk_used":                      "GB",
+	"disk_usedPercent":               "%",
+	"disk_inodesTotal":               "",
+	"disk_inodesUsed":                "",
+	"disk_inodesFree":                "",
+	"disk_inodesUsedPercent":         "%",
+	"disk_writeBytes":                "Bytes",
+	"disk_readBytes":                 "Bytes",
+	"disk_iopsInProgress":            "Bytes",
+	"disk_agt_read_bytes_rate":       "Byte/s",
+	"disk_agt_read_requests_rate":    "Request/s",
+	"disk_agt_write_bytes_rate":      "Byte/s",
+	"disk_agt_write_requests_rate":   "Request/s",
+	"disk_writeTime":                 "ms/Count",
+	"disk_readTime":                  "ms/Count",
+	"disk_ioUtils":                   "%",
+	"disk_fs_rwstate":                "",
+	"proc_cpu":                       "%",
+	"proc_mem":                       "%",
+	"proc_file":                      "Count",
+	"gpu_performance_state":          "",
+	"gpu_usage_gpu":                  "%",
+	"gpu_usage_mem":                  "%",
+	"disk_queue_length":              "Count",
+	"disk_write_bytes_per_operation": "KB/op",
+	"disk_read_bytes_per_operation":  "KB/op",
+	"disk_io_svctm":                  "ms/op",
 }
 
 // BuildMetric build metric as input metric
@@ -156,7 +161,10 @@ func BuildCesMetricData(inputMetric *InputMetric, isAggregated bool) CesMetricDa
 
 		newMetricData.Metric.MetricName = metric.MetricName
 		//metric name has two info ; use hashid and {metricname,MetricPrefix} replace it
-		if metric.MetricPrefix != "" {
+		if metric.MetricPrefix != "" && strings.HasPrefix(metric.MetricPrefix, ces_utils.VolumePrefix) {
+			newMetricData.Metric.MetricName = generateHashID(metric.MetricPrefix + metric.MetricName)
+			newMetricData.Metric.MetricExtraInfo = &CesMeticExtraInfo{OriginMetricName: metric.MetricName, MetricPrefix: strings.Replace(metric.MetricPrefix, ces_utils.VolumePrefix, "", -1), MetricType: "volume"}
+		} else if metric.MetricPrefix != "" {
 			newMetricData.Metric.MetricName = generateHashID(metric.MetricPrefix + metric.MetricName)
 			newMetricData.Metric.MetricExtraInfo = &CesMeticExtraInfo{OriginMetricName: metric.MetricName, MetricPrefix: metric.MetricPrefix}
 		} else {
