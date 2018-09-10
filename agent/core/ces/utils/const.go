@@ -42,6 +42,9 @@ const MaxPluginNum = 2
 // DefaultPluginCronTime const for default plugin cron time, seconds
 const DefaultPluginCronTime = 10
 
+//DEFAULT_DELTA_TIME_IN_SECONDS is the intercal to get metrics
+const DEFAULT_DELTA_TIME_IN_SECONDS = DefaultPluginCronTime
+
 // MaxCmdlineLen const for max process cmdline length
 const MaxCmdlineLen = 4096
 

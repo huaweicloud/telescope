@@ -61,28 +61,28 @@ func (c *CPUCollector) Collect(collectTime int64) *model.InputMetric {
 
 	totalDelta := totalCPUTime - c.LastStates.totalCPUTime
 
-	cpuUsagUser := 100 * (nowStates.user - c.LastStates.user - (nowStates.guest - c.LastStates.guest)) / totalDelta
-	cpuUsagSystem := 100 * (nowStates.system - c.LastStates.system) / totalDelta
-	cpuUsagIdle := 100 * (nowStates.idle - c.LastStates.idle) / totalDelta
+	cpuUsageUser := 100 * (nowStates.user - c.LastStates.user - (nowStates.guest - c.LastStates.guest)) / totalDelta
+	cpuUsageSystem := 100 * (nowStates.system - c.LastStates.system) / totalDelta
+	cpuUsageIdle := 100 * (nowStates.idle - c.LastStates.idle) / totalDelta
 
-	cpuUsagNice := 100 * (nowStates.nice - c.LastStates.nice) / totalDelta
-	cpuUsagIOWait := 100 * (nowStates.iowait - c.LastStates.iowait) / totalDelta
-	cpuUsagIrq := 100 * (nowStates.irq - c.LastStates.irq) / totalDelta
-	cpuUsagSoftirq := 100 * (nowStates.softirq - c.LastStates.softirq) / totalDelta
+	cpuUsageNice := 100 * (nowStates.nice - c.LastStates.nice) / totalDelta
+	cpuUsageIOWait := 100 * (nowStates.iowait - c.LastStates.iowait) / totalDelta
+	cpuUsageIrq := 100 * (nowStates.irq - c.LastStates.irq) / totalDelta
+	cpuUsageSoftIrq := 100 * (nowStates.softirq - c.LastStates.softirq) / totalDelta
 
 	c.LastStates = nowStates
 
 	fieldsG := []model.Metric{
-		model.Metric{MetricName: "cpu_usage_user", MetricValue: cpuUsagUser},
-		model.Metric{MetricName: "cpu_usage_system", MetricValue: cpuUsagSystem},
-		model.Metric{MetricName: "cpu_usage_idle", MetricValue: cpuUsagIdle},
-		model.Metric{MetricName: "cpu_usage_other", MetricValue: 100 - cpuUsagUser - cpuUsagSystem - cpuUsagIdle},
-		model.Metric{MetricName:"cpu_usage", MetricValue: 100 - cpuUsagIdle},
+		model.Metric{MetricName: "cpu_usage_user", MetricValue: cpuUsageUser},
+		model.Metric{MetricName: "cpu_usage_system", MetricValue: cpuUsageSystem},
+		model.Metric{MetricName: "cpu_usage_idle", MetricValue: cpuUsageIdle},
+		model.Metric{MetricName: "cpu_usage_other", MetricValue: 100 - cpuUsageUser - cpuUsageSystem - cpuUsageIdle},
+		model.Metric{MetricName:"cpu_usage", MetricValue: 100 - cpuUsageIdle},
 
-		model.Metric{MetricName: "cpu_usage_nice", MetricValue: cpuUsagNice},
-		model.Metric{MetricName: "cpu_usage_iowait", MetricValue: cpuUsagIOWait},
-		model.Metric{MetricName: "cpu_usage_irq", MetricValue: cpuUsagIrq},
-		model.Metric{MetricName: "cpu_usage_softirq", MetricValue: cpuUsagSoftirq},
+		model.Metric{MetricName: "cpu_usage_nice", MetricValue: cpuUsageNice},
+		model.Metric{MetricName: "cpu_usage_iowait", MetricValue: cpuUsageIOWait},
+		model.Metric{MetricName: "cpu_usage_irq", MetricValue: cpuUsageIrq},
+		model.Metric{MetricName: "cpu_usage_softirq", MetricValue: cpuUsageSoftirq},
 	}
 	result.Data = fieldsG
 	result.CollectTime = collectTime
