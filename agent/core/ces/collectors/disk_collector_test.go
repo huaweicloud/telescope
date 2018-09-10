@@ -1,26 +1,31 @@
 package collectors
 
 import (
+	"github.com/shirou/gopsutil/disk"
+	. "github.com/smartystreets/goconvey/convey"
+	"github.com/yougg/mockfn"
 	"testing"
 )
 
-func TestGetMountPrefix(t *testing.T) {
+//Collect
+func TestDiskCollect(t *testing.T) {
+	Convey("Test_Collect", t, func() {
+		Convey("test case1", func() {
 
-	mountPointTable := []struct {
-		input    string
-		expected string
-	}{
-		{"C:", "C_"},
-		{"/", "SlAsH_"},
-		{"/var/log/ces", "SlAsHvarSlAsHlogSlAsHces_"},
-	}
-
-	for _, value := range mountPointTable {
-		if getMountPrefix(value.input) != value.expected {
-			t.Errorf("GetMountPrefix Error, input is %s, correct expected is %s\n", value.input, getMountPrefix(value.input))
-		} else {
-			t.Logf("Success, input is %s, expected is %s\n", value.input, value.expected)
-		}
-	}
-
+			collector := DiskCollector{}
+			collect := collector.Collect(1)
+			So(collect, ShouldNotBeNil)
+		})
+		Convey("test case2", func() {
+			//disk.IOCounters()
+			mockfn.Replace(disk.IOCounters, func(names ...string) (map[string]disk.IOCountersStat, error) {
+				stats := make(map[string]disk.IOCountersStat)
+				stats[""] = disk.IOCountersStat{}
+				return stats, nil
+			})
+			collector := DiskCollector{}
+			collect := collector.Collect(1)
+			So(collect, ShouldNotBeNil)
+		})
+	})
 }

@@ -21,6 +21,79 @@ KillMode=none
 [Install]
 WantedBy=multi-user.target
 "
+CES_AGENT_FLAG="ces"
+
+# array_contains ${item} "${arr[@]}"
+function array_contains () {
+    local seeking=$1; shift
+    local in=1
+    for element; do
+        if [[ ${element} == ${seeking} ]]; then
+            in=0
+            break
+        fi
+    done
+    return ${in}
+}
+
+# query metadata to check if need to install ces agent
+# 0:yes; 1:no
+function isCesSelected()
+{
+    #get metadata
+    local meta_json
+
+    which curl
+    if [[ $? -eq 0 ]]; then
+        meta_json=$(curl -s -X GET --connect-timeout 7 http://169.254.169.254/openstack/latest/meta_data.json)
+    else
+        meta_json=$(wget http://169.254.169.254/openstack/latest/meta_data.json && cat meta_data.json)
+        rm -rf meta_data.json
+    fi
+
+    AVAILABILITY_ZONE=$(echo ${meta_json} | grep -P '"availability_zone":\s*"(.*?)"' -o 2>/dev/null | awk -F ":" '{print $2}' | sed 's/\"//g' | tr -d ' \t\n\r\f')
+    # Debian 7.5.0 64bit does not have libpcre.so.3
+    if [[ -z ${AVAILABILITY_ZONE} ]]; then
+        AVAILABILITY_ZONE=$(echo ${meta_json} | python -mjson.tool | grep availability_zone | awk -F '"' {'print $4'})
+    fi
+    agent_list_string=$(echo ${meta_json} | grep -P '"__support_agent_list":\s*"(.*?)"' -o 2>/dev/null | awk -F ":" '{print $2}' | sed 's/\"//g')
+    IFS=', ' read -r -a agent_array <<< "${agent_list_string}"
+
+    array_contains ${CES_AGENT_FLAG} "${agent_array[@]}"
+    is_ces_in_list=$?
+
+    if [[ ${is_ces_in_list} -eq 0 ]]; then
+        echo "ces flag FOUND in __support_agent_list"
+        return 0
+    else
+        echo "ces flag NOT FOUND in __support_agent_list"
+        return 1
+    fi
+}
+
+# 0:yes; 1:no
+function isStartedByTelescopeInstall()
+{
+    PPID_CMDLINE=$(cat /proc/${PPID}/cmdline)
+    echo ${PPID_CMDLINE} | grep "TelescopeInstall"
+    if [[ $? -eq 0 ]]; then
+        return 0
+    else
+        return 1
+    fi
+}
+
+isCesSelected
+is_ces_selected=$?
+isStartedByTelescopeInstall
+is_started_by_ti=$?
+
+# 是被TelescopeInstall启动 && ces没有被打标签
+if [[ ${is_started_by_ti} -eq 0 ]] && [[ ${is_ces_selected} -ne 0 ]]; then
+    rm -rf /usr/local/telescope_linux_amd64*
+    exit 0
+fi
+
 
 if [ "`id -u`" = "0" ] || [ "`id -g`" = "0" ] ; then
     echo "Current user is root."
@@ -100,7 +173,7 @@ if [[ "$1" && ! -d "$1" ]]; then
     echo "$1" is not a directory! Install telescope failed.
     exit -1
 fi
-if [[ "$1" $$ -d "$1" ]]; then
+if [[ "$1" && -d "$1" ]]; then
     INSTALL_DIR="$1"/telescope
 fi
 
@@ -149,7 +222,7 @@ else
         if [ -d /etc/local.d ]; then
             touch /etc/local.d/telescoped.start
             chmod 755 /etc/local.d/telescoped.start
-            echo "rc-service telecoped start" > /etc/local.d/telescoped.start
+            echo "/etc/init.d/telescoped start" > /etc/local.d/telescoped.start
         fi
     elif command -v systemctl >/dev/null 2>&1; then 
         cp ${CURRENT_DIR}"/telescoped" /etc/init.d
@@ -180,4 +253,3 @@ elif command -v systemctl >/dev/null 2>&1; then
 fi
 
 exit 0
-

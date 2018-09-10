@@ -1,55 +1,86 @@
 package utils
 
-// NameSpace const namespace
-const NameSpace = "AGT.ECS"
+const (
+	// NameSpace const namespace
+	NameSpace = "AGT.ECS"
 
-// ExternalServiceNS const namespace of BMS
-const ExternalServiceBMS = "SERVICE.BMS"
+	// ExternalServiceBMS const namespace of BMS
+	ExternalServiceBMS = "SERVICE.BMS"
 
-// TagBMS const prefix to distinguish BMS from meta_data
-const TagBMS = "physical"
+	// TagBMS const prefix to distinguish BMS from meta_data
+	TagBMS = "physical"
 
-// TagServiceBMS const field of BMS from meta_data
-const TagServiceBMS = "metering.resourcespeccode"
+	// TagServiceBMS const field of BMS from meta_data
+	TagServiceBMS = "metering.resourcespeccode"
 
-// TTLOneHour const TTL of one hour
-const TTLOneHour = 3600
+	// TTLOneHour const TTL of one hour
+	TTLOneHour = 3600
 
-// TTLTwoDay const TTL of two days
-const TTLTwoDay = 172800 // 2 day
+	// TTLTwoDay const TTL of two days
+	TTLTwoDay = 172800 // 2 day
 
-// DimensionName const dimension name
-const DimensionName = "instance_id"
+	// DimensionName const dimension name
+	DimensionName = "instance_id"
 
-// PostAggregatedMetricDataURI const URI for post aggregated metric data (1 min)
-const PostAggregatedMetricDataURI = "/metric-data"
+	// PostAggregatedMetricDataURI const URI for post aggregated metric data (1 min)
+	PostAggregatedMetricDataURI = "/metric-data"
 
-// PostRawMetricDataURI const URI for post raw metric data (10s)
-const PostRawMetricDataURI = "/detailed-metric-data"
+	// PostRawMetricDataURI const URI for post raw metric data (10s)
+	PostRawMetricDataURI = "/detailed-metric-data"
 
-// PostProcessInfo const URI for post process info
-const PostProcessInfo = "/process-info"
+	// PostProcessInfo const URI for post process info
+	PostProcessInfo = "/process-info"
 
-// Service const for CES agent service
-const Service = "CES"
+	// PostCustomMonitorMetricDataURI ...
+	PostCustomMonitorMetricDataURI = PostAggregatedMetricDataURI
 
-// PluginConf const for agent plugin config
-const PluginConf = "./plugins/conf.json"
+	// PostEventDataURI
+	PostEventDataURI = "/events"
 
-// MaxPluginNum const for max plugin
-const MaxPluginNum = 2
+	// Service const for CES agent service
+	Service = "CES"
 
-// DefaultPluginCronTime const for default plugin cron time, seconds
-const DefaultPluginCronTime = 10
+	// PluginConf const for agent plugin config
+	PluginConf = "./plugins/conf.json"
 
-//DEFAULT_DELTA_TIME_IN_SECONDS is the intercal to get metrics
-const DEFAULT_DELTA_TIME_IN_SECONDS = DefaultPluginCronTime
+	// MaxPluginNum const for max plugin
+	MaxPluginNum = 2
 
-// MaxCmdlineLen const for max process cmdline length
-const MaxCmdlineLen = 4096
+	// DefaultPluginCronTime const for default plugin cron time, seconds
+	DefaultPluginCronTime = 60
+	// DefaultCustomMonitorPluginCronTime ...
+	DefaultCustomMonitorPluginCronTime = 60
+	// DefaultEventPluginCronTime ...
+	DefaultEventPluginCronTime = 60
 
-// CmdlineSuffix const for process cmdline suffix
-const CmdlineSuffix = "..."
+	// MaxCmdlineLen const for max process cmdline length
+	MaxCmdlineLen = 4096
 
-// CmdlineSuffix const for process cmdline suffix
-const VolumePrefix = "volumeSlAsH"
+	// CmdlineSuffix const for process cmdline suffix
+	CmdlineSuffix = "..."
+
+	// VolumePrefix ...
+	// CmdlineSuffix const for process cmdline suffix
+	VolumePrefix = "volumeSlAsH"
+
+	// DefaultPluginType AgtPluginType  CustomMonitorPluginType EventPluginType Plugin types
+	DefaultPluginType       = ""
+	AgtPluginType           = "Agent"
+	CustomMonitorPluginType = "Custom Monitor"
+	EventPluginType         = "Event"
+
+	// DefaultMaxTimeoutProcNum is the max plugin process number while waiting for output
+	DefaultMaxTimeoutProcNum = 5
+
+	// EnvInstanceID ...
+	EnvInstanceID = "CES_EVN_INSTANCE_ID"
+
+	ExecutionPerMinute = "0 * * * * *"
+
+	// SendTotal ...
+	//metric collection frequency
+	SendTotal = 6
+
+	Top5ProcessCollectPeriodInSeconds = 5 * 60
+	Top5ProcessSamplePeriodInSeconds  = 60
+)

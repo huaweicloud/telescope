@@ -3,45 +3,45 @@ package utils
 import (
 	"archive/tar"
 	"archive/zip"
-	"bufio"
+	"bytes"
 	"compress/gzip"
 	"crypto/md5"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"path"
-	"runtime"
-	"strconv"
-	"sync"
-
-	"encoding/json"
-
-	"bytes"
 	"net"
 	"net/http"
 	"os"
+	"os/user"
+	"path"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/huaweicloud/telescope/agent/core/logs"
 	reuse "github.com/libp2p/go-reuseport"
-	"os/user"
 )
 
-var HTTPClient *http.Client
-var clientMutex = new(sync.Mutex)
-var CLIENT_POINT = 0
+var (
+	HTTPClient   *http.Client
+	clientMutex  = new(sync.Mutex)
+	CLIENT_POINT = 0
+	workingPath  string
+)
 
-// limit float number to two decimal points
+// Limit2Decimal limit float number to two decimal points
 func Limit2Decimal(number float64) float64 {
 	limitedString := fmt.Sprintf("%.2f", number)
 	limitedNumber, _ := strconv.ParseFloat(limitedString, 64)
 	return limitedNumber
 }
 
-// return os type, eg: windows_amd64
+// GetOsType return os type, eg: windows_amd64
 func GetOsType() string {
 	os := runtime.GOOS
 	arch := runtime.GOARCH
@@ -49,14 +49,14 @@ func GetOsType() string {
 	return osType
 }
 
-// compare two files with md5 of file
+// CompareFiles compare two files with md5 of file
 func CompareFiles(srcFile, tarFile string) bool {
 	srcMd5 := GetMd5OfFile(srcFile)
 	tarMd5 := GetMd5OfFile(tarFile)
 	return srcMd5 == tarMd5
 }
 
-// get md5 of file
+// GetMd5OfFile get md5 of file
 func GetMd5OfFile(file string) string {
 	bytes, err := ioutil.ReadFile(file)
 	if err != nil {
@@ -66,39 +66,40 @@ func GetMd5OfFile(file string) string {
 	return string(md5[:])
 }
 
-//Persiste the struct to file
+// WriteToFile Persiste the struct to file
 func WriteToFile(obj interface{}, filepath string) error {
 	f, err := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	defer f.Close()
 	if err != nil {
-		logs.GetLogger().Errorf("Failed to open file [%s], error is %s.", filepath, err.Error())
+		logs.GetCesLogger().Errorf("Failed to open file [%s], error is %s.", filepath, err.Error())
 		return err
 	}
 	encoder := json.NewEncoder(f)
 	err = encoder.Encode(obj)
 	if err != nil {
-		logs.GetLogger().Errorf("Failed to encoding the object: %v, error is %s", obj, err.Error())
+		logs.GetCesLogger().Errorf("Failed to encoding the object: %v, error is %s", obj, err.Error())
 		return err
 	}
 	return nil
 }
 
+// WriteStrToFile ...
 func WriteStrToFile(str string, filepath string) error {
 	f, err := os.OpenFile(filepath, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	defer f.Close()
 	if err != nil {
-		logs.GetLogger().Errorf("Failed to open file [%s], error is %s.", filepath, err.Error())
+		logs.GetCesLogger().Errorf("Failed to open file [%s], error is %s.", filepath, err.Error())
 		return err
 	}
 	_, err = f.WriteString(str)
 	if err != nil {
-		logs.GetLogger().Errorf("Failed to write string: %s, error is %s", str, err.Error())
+		logs.GetCesLogger().Errorf("Failed to write string: %s, error is %s", str, err.Error())
 		return err
 	}
 	return nil
 }
 
-// Concat the two str, str1 first, strs follows
+// ConcatStr Concat the two str, str1 first, strs follows
 func ConcatStr(str1 string, str2 string) string {
 	var buffer bytes.Buffer
 	buffer.WriteString(str1)
@@ -107,17 +108,19 @@ func ConcatStr(str1 string, str2 string) string {
 	return buffer.String()
 }
 
+// GetCurrTSInMs ...
 // We don't use the time.Millisecond
 // Because 1000000 is more accurate and efficient
 func GetCurrTSInMs() int64 {
 	return time.Now().UnixNano() / 1000000
 }
 
+// GetMsFromTime ...
 func GetMsFromTime(t time.Time) int64 {
 	return t.UnixNano() / 1000000
 }
 
-//according the file name and decideDirBool to judge file or directory
+// IsFileOrDir according the file name and decideDirBool to judge file or directory
 func IsFileOrDir(fileName string, decideDirBool bool) bool {
 	fileInfo, error := os.Stat(fileName)
 	if error != nil {
@@ -136,7 +139,7 @@ func getAllFileWithPattern(pattern string) []string {
 	formatDir := filepath.FromSlash(pattern) //format “/” to path separator according to system
 	matches, err := filepath.Glob(formatDir) // get all files and directory according to the pattern
 	if err != nil || len(matches) == 0 {
-		logs.GetLogger().Infof("there is no matches with the pattern: %s", pattern)
+		logs.GetCesLogger().Infof("there is no matches with the pattern: %s", pattern)
 	}
 	for _, matchStr := range matches {
 		if IsFileOrDir(matchStr, false) {
@@ -146,7 +149,7 @@ func getAllFileWithPattern(pattern string) []string {
 	return files
 }
 
-//cut out string according to the size
+// SubStr cut out string according to the size
 func SubStr(str string, size int) string {
 
 	strRune := []rune(str)
@@ -167,61 +170,6 @@ func SubStr(str string, size int) string {
 
 }
 
-//转换时间字符串为time.Time
-func ParseLogTime(logTimeContent string, timePattern string, recentTime time.Time) (time.Time, error) {
-	if len(timePattern) == 0 {
-		return time.Now(), Errors.NoTimeFormat
-	} else {
-		if len(logTimeContent) >= 0 {
-			logTime, err := Parse(timePattern, logTimeContent)
-			if err != nil {
-				if !recentTime.IsZero() {
-					return recentTime, err
-				}
-				return time.Now(), err
-			} else {
-				return logTime, nil
-			}
-		} else {
-			if !recentTime.IsZero() {
-				return recentTime, Errors.NoTimeInTheLog
-			}
-			return time.Now(), Errors.NoTimeInTheLog
-		}
-	}
-
-}
-
-//retrieve all files in the path, eg. /var/err*,/var/log/*
-func GetAllFilesFromDirectoryPath(path string) (files []string, err error) {
-	pathArr := make([]string, 0)
-	if strings.Contains(path, ",") {
-		pathArr = strings.Split(path, ",")
-	} else {
-		pathArr = append(pathArr, path)
-	}
-	logs.GetLtsLogger().Debugf("Paths: %v", pathArr)
-	var matches []string
-	for i, _ := range pathArr {
-		formatDir := filepath.FromSlash(pathArr[i]) //format “/” to path separator according to system
-		matches, err = filepath.Glob(formatDir)
-		if err != nil {
-			return
-		}
-		if len(matches) == 0 {
-			err = Errors.NoMatchedFileFound
-			return
-		}
-		for _, matchStr := range matches {
-			if IsFileOrDir(matchStr, false) && isNotCompressedFile(matchStr) && isNotTempFile(matchStr) {
-				files = append(files, matchStr)
-			}
-		}
-	}
-
-	return
-}
-
 //is compressed file
 func isNotCompressedFile(file string) bool {
 	if !strings.Contains(file, ".zip") && !strings.Contains(file, ".tar") && !strings.Contains(file, ".gz") && !strings.Contains(file, ".rar") {
@@ -238,7 +186,7 @@ func isNotTempFile(file string) bool {
 	return false
 }
 
-//merge the oriArr to destArr
+// MergeStringArr merge the oriArr to destArr
 func MergeStringArr(oriArr []string, destArr []string) []string {
 	for curIndex := range oriArr {
 		if !StrArrContainsStr(destArr, oriArr[curIndex]) {
@@ -249,7 +197,7 @@ func MergeStringArr(oriArr []string, destArr []string) []string {
 
 }
 
-//An array which type is string if contain a string
+// StrArrContainsStr An array which type is string if contain a string
 func StrArrContainsStr(strArr []string, str string) bool {
 	if len(strArr) > 0 {
 		for strIndex := range strArr {
@@ -263,7 +211,7 @@ func StrArrContainsStr(strArr []string, str string) bool {
 	return false
 }
 
-//get local ip
+// GetLocalIp get local ip
 func GetLocalIp() (ip string) {
 	addrs, err := net.InterfaceAddrs()
 	if err != nil {
@@ -281,7 +229,7 @@ func GetLocalIp() (ip string) {
 	return
 }
 
-//get system host name
+// GetHostName get system host name
 func GetHostName() string {
 	name, err := os.Hostname()
 	if err != nil {
@@ -291,7 +239,7 @@ func GetHostName() string {
 	}
 }
 
-//check current user,if user is root ,do not start this agent
+// CheckCurrentUser check current user,if user is root ,do not start this agent
 func CheckCurrentUser(args []string) bool {
 	if runtime.GOOS == "linux" {
 		for _, arg := range args {
@@ -301,19 +249,20 @@ func CheckCurrentUser(args []string) bool {
 		}
 		usr, err := user.Current()
 		if err != nil {
-			logs.GetLogger().Errorf("Get current user error: %s", err)
-			logs.GetLogger().Flush()
+			logs.GetCesLogger().Errorf("Get current user error: %s", err)
+			logs.GetCesLogger().Flush()
 			return false
 		}
 		if usr.Username == "root" {
-			logs.GetLogger().Errorf("Running as root user or group is not recommended! If you really want to force running as root, use -R command line option!")
-			logs.GetLogger().Flush()
+			logs.GetCesLogger().Errorf("Running as root user or group is not recommended! If you really want to force running as root, use -R command line option!")
+			logs.GetCesLogger().Flush()
 			return false
 		}
 	}
 	return true
 }
 
+// UncompressFile ...
 func UncompressFile(zipFilePath string, destPath string) (string, error) {
 	if strings.HasSuffix(strings.ToLower(zipFilePath), ".zip") {
 		return UncompressZipFile(zipFilePath, destPath)
@@ -322,13 +271,13 @@ func UncompressFile(zipFilePath string, destPath string) (string, error) {
 	return UncompressTgzFile(zipFilePath, destPath)
 }
 
-// uncompress .zip
+// UncompressZipFile uncompress .zip
 func UncompressZipFile(zipFilePath string, destPath string) (string, error) {
 	os.Mkdir(destPath, 0777)
 	// zip 为windows升级包，需要特殊处理
 	if runtime.GOOS == "windows" {
-		filePath := strings.Split(zipFilePath, "/")
-		zipFilePath = destPath + "/" + filePath[len(filePath)-1]
+		_, pathfile := filepath.Split(zipFilePath)
+		zipFilePath = filepath.Join(destPath, pathfile)
 	}
 
 	cf, err := zip.OpenReader(zipFilePath) //读取zip文件
@@ -346,36 +295,37 @@ func UncompressZipFile(zipFilePath string, destPath string) (string, error) {
 			if err != nil {
 				return "", err
 			}
-			os.MkdirAll(destPath+"/"+path.Dir(file.Name), os.ModePerm)
+			os.MkdirAll(filepath.Join(destPath, path.Dir(file.Name)), os.ModePerm)
 
-			f, err := os.Create(destPath + "/" + file.Name)
+			f, err := os.Create(filepath.Join(destPath, file.Name))
 			if err != nil {
 				return "", err
 			}
-			defer f.Close()
 			_, err = io.Copy(f, rc)
 			if err != nil {
+				f.Close()
 				return "", err
 			}
+			f.Close()
 		}
 	}
 	return destDir, nil
 }
 
-// uncompress .tar.gz or .tgz file
+// UncompressTgzFile uncompress .tar.gz or .tgz file
 func UncompressTgzFile(tgzFilePath string, destPath string) (string, error) {
 
 	os.Mkdir(destPath, os.ModePerm)
 	fr, err := os.Open(tgzFilePath)
 	if err != nil {
-		logs.GetLogger().Errorf("Open tgz file failed, err:%s", err.Error())
+		logs.GetCesLogger().Errorf("Open tgz file failed, err:%s", err.Error())
 		return "", err
 	}
 	defer fr.Close()
 
 	gr, err := gzip.NewReader(fr)
 	if err != nil {
-		logs.GetLogger().Errorf("Create gzip reader failed, err:%s", err.Error())
+		logs.GetCesLogger().Errorf("Create gzip reader failed, err:%s", err.Error())
 		return "", err
 	}
 	tr := tar.NewReader(gr)
@@ -389,23 +339,25 @@ func UncompressTgzFile(tgzFilePath string, destPath string) (string, error) {
 			break
 		}
 		if hdr.Typeflag != tar.TypeDir {
-			os.MkdirAll(destPath+"/"+path.Dir(hdr.Name), os.ModePerm)
-			fw, err := os.Create(destPath + "/" + hdr.Name)
+			os.MkdirAll(filepath.Join(destPath, path.Dir(hdr.Name)), os.ModePerm)
+			fw, err := os.Create(filepath.Join(destPath, hdr.Name))
 			if err != nil {
-				logs.GetLogger().Errorf("Create new file failed, err:%s", err.Error())
+				logs.GetCesLogger().Errorf("Create new file failed, err:%s", err.Error())
 				return "", err
 			}
 			_, err = io.Copy(fw, tr)
 			if err != nil {
-				logs.GetLogger().Errorf("Copy reader failed, err:%s", err.Error())
+				logs.GetCesLogger().Errorf("Copy reader failed, err:%s", err.Error())
+				fw.Close()
 				return "", err
 			}
+			fw.Close()
 		}
 	}
 	return destDir, nil
 }
 
-// copy file
+// CopyFile copy file
 func CopyFile(srcFilePath, destFilePath string) error {
 	srcFile, err := os.Open(srcFilePath)
 	if err != nil {
@@ -426,45 +378,20 @@ func CopyFile(srcFilePath, destFilePath string) error {
 	return destFile.Sync()
 }
 
-// create dir
+// CreateDir create dir
 func CreateDir(dir string) error {
 	_, err := os.Stat(dir)
 	if err != nil {
 		err := os.Mkdir(dir, os.ModePerm)
 		if err != nil {
-			logs.GetLogger().Warnf("Create agent tmp dir failed, err:%s", err)
+			logs.GetCesLogger().Warnf("Create agent tmp dir failed, err:%s", err)
 			return err
 		}
 	}
 	return nil
 }
 
-//calculate finger print of the file
-func GetFileFingerPrint(filePath string) (fingerPrint string) {
-	var firstLineContent string
-	h := md5.New()
-	file, openFileErr := os.Open(filePath)
-	if openFileErr != nil {
-		logs.GetLtsLogger().Errorf("Calculate file fingerprint, can't open the file:%s", filePath)
-		return
-	}
-
-	buf := bufio.NewReader(file)
-	for {
-		firstLineContent, _ = buf.ReadString('\n')
-		break
-	}
-	defer file.Close()
-	firstLineContent = strings.TrimSpace(firstLineContent)
-	if firstLineContent != "" {
-		io.WriteString(h, firstLineContent)
-		fingerPrint = strings.ToLower(fmt.Sprintf("%x", h.Sum(nil)))
-	}
-	return
-
-}
-
-//get md5 hash from bytes
+// GetMd5FromBytes get md5 hash from bytes
 func GetMd5FromBytes(contentBytes []byte) string {
 	h := md5.New()
 	h.Write(contentBytes)
@@ -481,8 +408,8 @@ func IsFileExist(path string) bool {
 func HTTPGet(url string) ([]byte, error) {
 	client := GetHttpClient()
 	request, rErr := http.NewRequest("GET", url, nil)
-	if rErr != nil{
-		logs.GetLogger().Errorf("Create request Error:",rErr.Error())
+	if rErr != nil {
+		logs.GetCesLogger().Errorf("Create request Error:", rErr.Error())
 		return []byte{}, rErr
 	}
 	resp, err := client.Do(request)
@@ -498,6 +425,7 @@ func HTTPGet(url string) ([]byte, error) {
 	return body, nil
 }
 
+// HTTPSend ...
 func HTTPSend(req *http.Request, service string) (*http.Response, error) {
 	client := GetHttpClient()
 	authReq, _ := generateAuthHeader(req, service)
@@ -512,32 +440,35 @@ func HTTPSend(req *http.Request, service string) (*http.Response, error) {
 	return res, err
 }
 
-func GetHttpClient() *http.Client{
+func GetHttpClient() *http.Client {
+
 	clientMutex.Lock()
 	defer clientMutex.Unlock()
 
 	currentPoint := GetClientPort()
-	netAddr := &net.TCPAddr{Port:currentPoint}
+	netAddr := &net.TCPAddr{Port: currentPoint}
 	transport := &http.Transport{
-		TLSClientConfig:&tls.Config{InsecureSkipVerify:true},
-		DisableKeepAlives:true,
-		DialContext:(&net.Dialer{
-			Timeout:	10 * time.Second,
-			LocalAddr:  netAddr,
+		TLSClientConfig:   &tls.Config{InsecureSkipVerify: true},
+		DisableKeepAlives: true,
+		DialContext: (&net.Dialer{
+			Timeout:   10 * time.Second,
+			LocalAddr: netAddr,
 		}).DialContext,
 	}
-	HTTPClient = &http.Client{Transport:transport, Timeout: 10 * time.Second}
-	logs.GetLogger().Infof("New client had create, CLIENT_POINT: %d, GetClientPort: %d", CLIENT_POINT, currentPoint)
+	HTTPClient = &http.Client{Transport: transport, Timeout: 10 * time.Second}
+
+	logs.GetCesLogger().Debugf("New client had create, CLIENT_POINT: %d , GetClientPort: %d", CLIENT_POINT, currentPoint)
 	CLIENT_POINT = currentPoint
 	return HTTPClient
 }
 
-func ReuseDial(network, addr string)(net.Conn, error){
+// ReuseDial ...
+func ReuseDial(network, addr string) (net.Conn, error) {
 	dialPort := strconv.Itoa(CLIENT_POINT)
-	if !reuse.Available(){
+	if !reuse.Available() {
 		dialPort = "0"
 	}
-	return reuse.Dial(network, "0.0.0.0:" + dialPort, addr)
+	return reuse.Dial(network, "0.0.0.0:"+dialPort, addr)
 }
 
 func generateAuthHeader(req *http.Request, service string) (*http.Request, error) {
@@ -551,7 +482,7 @@ func generateAuthHeader(req *http.Request, service string) (*http.Request, error
 
 	authkey, err := s.GetAuthorization(req)
 	if err != nil {
-		logs.GetLtsLogger().Errorf("Get authorization header error, error is %v", err)
+		logs.GetCesLogger().Errorf("Get authorization header error, error is %v", err)
 	}
 	req.Header.Set(HeaderAuthorization, authkey)
 	if s.AKSKToken != "" {
@@ -560,6 +491,21 @@ func generateAuthHeader(req *http.Request, service string) (*http.Request, error
 	return req, err
 }
 
+// IsWindowsOs ...
 func IsWindowsOs() bool {
 	return strings.Contains(runtime.GOOS, "windows")
+}
+
+func GetWorkingPath() string {
+	var err error
+
+	if workingPath == "" {
+		workingPath, err = filepath.Abs(filepath.Dir(os.Args[0]))
+		if err != nil {
+			logs.GetCesLogger().Errorf("Get working path path failed and error is: %v", err)
+			return ""
+		}
+	}
+
+	return workingPath
 }

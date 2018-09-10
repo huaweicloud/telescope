@@ -1138,9 +1138,6 @@ func encodeVarintDeterministic(dAtA []byte, offset int, v uint64) int {
 	return offset + 1
 }
 func (m *OrderedMap) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if len(m.StringMap) > 0 {
@@ -1158,9 +1155,6 @@ func (m *OrderedMap) Size() (n int) {
 }
 
 func (m *UnorderedMap) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if len(m.StringMap) > 0 {
@@ -1178,9 +1172,6 @@ func (m *UnorderedMap) Size() (n int) {
 }
 
 func (m *MapNoMarshaler) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if len(m.StringMap) > 0 {
@@ -1198,9 +1189,6 @@ func (m *MapNoMarshaler) Size() (n int) {
 }
 
 func (m *NestedOrderedMap) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if len(m.StringMap) > 0 {
@@ -1222,9 +1210,6 @@ func (m *NestedOrderedMap) Size() (n int) {
 }
 
 func (m *NestedMap1) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if len(m.NestedStringMap) > 0 {
@@ -1242,9 +1227,6 @@ func (m *NestedMap1) Size() (n int) {
 }
 
 func (m *NestedUnorderedMap) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if len(m.StringMap) > 0 {
@@ -1266,9 +1248,6 @@ func (m *NestedUnorderedMap) Size() (n int) {
 }
 
 func (m *NestedMap2) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if len(m.NestedStringMap) > 0 {

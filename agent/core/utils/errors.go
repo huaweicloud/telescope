@@ -13,11 +13,12 @@ type logdErrors struct {
 	AkskStrInvalid            error
 }
 
+// Errors ...
 var Errors = logdErrors{
-	NoConfigFileFound:         errors.New("No config file found, please check if conf.json is missing."),
-	ConfigFileValidationError: errors.New("Config file validation failed, please re-check the content on it."),
-	NoMatchedFileFound:        errors.New("No matched file found with a pattern"),
-	NoTimeInTheLog:            errors.New("There is no time in the log text"),
-	NoTimeFormat:              errors.New("No dateformat for the log agent in the configuration file"),
-	AkskStrInvalid:            errors.New("Aksk data is invalid"),
+	NoConfigFileFound:         errors.New("no config file found, please check if missing"),
+	ConfigFileValidationError: errors.New("config file validation failed, please re-check the content on it"),
+	NoMatchedFileFound:        errors.New("no matched file found with a pattern"),
+	NoTimeInTheLog:            errors.New("there is no time in the log text"),
+	NoTimeFormat:              errors.New("no dateformat for the log agent in the configuration file"),
+	AkskStrInvalid:            errors.New("aksk data is invalid"),
 }

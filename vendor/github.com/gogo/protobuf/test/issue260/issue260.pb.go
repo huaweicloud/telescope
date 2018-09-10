@@ -569,9 +569,6 @@ func encodeVarintPopulateIssue260(dAtA []byte, v uint64) []byte {
 	return dAtA
 }
 func (m *Dropped) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	l = len(m.Name)
@@ -585,9 +582,6 @@ func (m *Dropped) Size() (n int) {
 }
 
 func (m *DroppedWithoutGetters) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if m.Height != 0 {
@@ -602,9 +596,6 @@ func (m *DroppedWithoutGetters) Size() (n int) {
 }
 
 func (m *Kept) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	l = len(m.Name)
