@@ -37,7 +37,7 @@ func SendMetricData(url string, data *model.InputMetric, isAggregate bool) {
 	if res.StatusCode == http.StatusCreated { //TODO the codes need be optimized
 		logs.GetCesLogger().Info("Send metric success")
 	} else {
-		logs.GetCesLogger().Infof("Failed to send metric and the response code:%d", res.StatusCode)
+		logs.GetCesLogger().Errorf("Failed to send metric and the response code:%d", res.StatusCode)
 	}
 }
 
