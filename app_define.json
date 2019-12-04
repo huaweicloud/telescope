@@ -1,1 +1,1 @@
-{"fileVersion":"1","name":"telescope","description":"","version":"1.0.8","type":"microService","processes":{"telescope":{"subscribes":[]}}}
+{"fileVersion":"1","name":"Logtank-telescope","description":"","version":"1.0.0","type":"microService","processes":{"Logtank-telescope":{"subscribes":[]}}}

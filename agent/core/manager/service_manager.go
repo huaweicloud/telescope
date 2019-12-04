@@ -1,14 +1,10 @@
 package manager
 
 import (
-	"os/signal"
-	"syscall"
-
+	"github.com/huaweicloud/telescope/agent/core/assistant"
 	"github.com/huaweicloud/telescope/agent/core/ces"
 	"github.com/huaweicloud/telescope/agent/core/channel"
 	"github.com/huaweicloud/telescope/agent/core/heartbeat"
-	"github.com/huaweicloud/telescope/agent/core/lts"
-	"github.com/huaweicloud/telescope/agent/core/upgrade"
 	"github.com/huaweicloud/telescope/agent/core/utils"
 )
 
@@ -16,6 +12,7 @@ type servicemanager struct {
 	serviceMap map[string]Service
 }
 
+// NewServicemanager ...
 func NewServicemanager() *servicemanager {
 	sMap := make(map[string]Service)
 	return &servicemanager{serviceMap: sMap}
@@ -25,14 +22,13 @@ func (sm *servicemanager) Init() {
 	//init conf.json
 	utils.InitConfig()
 	//register and listen kill signal
-	signal.Notify(getchOsSignal(), syscall.SIGKILL, syscall.SIGTERM, upgrade.SIG_UPGRADE)
-	go HandleOsSignal(getchOsSignal())
+	go HandleSignal()
 
 }
 
 func (sm *servicemanager) RegisterService() {
 	sm.serviceMap["cesService"] = &ces.Service{}
-	sm.serviceMap["ltsService"] = &lts.LtsService{}
+	sm.serviceMap["assistant"] = &assistant.Assistant{}
 }
 
 func (sm *servicemanager) InitService() {
@@ -48,7 +44,7 @@ func (sm *servicemanager) StartService() {
 }
 
 func (sm *servicemanager) HeartBeat() {
-	hb := heartbeat.HeartBeat{LtsDetails: "", CesDetails: ""}
+	hb := heartbeat.HeartBeat{CesDetails: ""}
 	go hb.LoadHbServicesDetails(channel.GetServicesChData())
 	go hb.ProduceHeartBeat(channel.GetHeartBeatChan())
 	go hb.ConsumeHeartBeat(channel.GetHeartBeatChan())

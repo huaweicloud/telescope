@@ -26,8 +26,13 @@ func (p *ProcStatusCollector) Collect(collectTime int64) *model.InputMetric {
 	allProcesses, _ := process.Processes()
 	procs := &ProcessNum{}
 
-	for _, eachProcess := range allProcesses {
-		status, _ := eachProcess.Status()
+	for _, p := range allProcesses {
+		status, err := p.Status()
+		if err != nil {
+			logs.GetCesLogger().Errorf("Get status of process(%s) failed and error is: %v", p.String(), err)
+			continue
+		}
+
 		switch status {
 		case "R":
 			procs.runningProcNum++
@@ -37,20 +42,22 @@ func (p *ProcStatusCollector) Collect(collectTime int64) *model.InputMetric {
 			procs.zombieProcNum++
 		case "I":
 			procs.idleProcNum++
-		case "B":
+		case "W":
+			fallthrough
+		case "L":
 			procs.blockedProcNum++
 		default:
-			logs.GetCesLogger().Infof("Other status of process :%v,status :%v", eachProcess.Pid, status)
+			logs.GetCesLogger().Warnf("Unknown status(%s) of process(%s)", status, p.String())
 		}
 	}
 
 	fieldsG := []model.Metric{
-		model.Metric{MetricName: "proc_running_count", MetricValue: float64(procs.runningProcNum)},
-		model.Metric{MetricName: "proc_idle_count", MetricValue: float64(procs.idleProcNum)},
-		model.Metric{MetricName: "proc_zombie_count", MetricValue: float64(procs.zombieProcNum)},
-		model.Metric{MetricName: "proc_blocked_count", MetricValue: float64(procs.blockedProcNum)},
-		model.Metric{MetricName: "proc_sleeping_count", MetricValue: float64(procs.sleepingProcNum)},
-		model.Metric{MetricName: "proc_total_count", MetricValue: float64(len(allProcesses))},
+		{MetricName: "proc_running_count", MetricValue: float64(procs.runningProcNum)},
+		{MetricName: "proc_idle_count", MetricValue: float64(procs.idleProcNum)},
+		{MetricName: "proc_zombie_count", MetricValue: float64(procs.zombieProcNum)},
+		{MetricName: "proc_blocked_count", MetricValue: float64(procs.blockedProcNum)},
+		{MetricName: "proc_sleeping_count", MetricValue: float64(procs.sleepingProcNum)},
+		{MetricName: "proc_total_count", MetricValue: float64(len(allProcesses))},
 	}
 
 	result.Data = fieldsG

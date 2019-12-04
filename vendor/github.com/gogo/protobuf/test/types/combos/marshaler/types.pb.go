@@ -3368,9 +3368,6 @@ func encodeVarintPopulateTypes(dAtA []byte, v uint64) []byte {
 	return dAtA
 }
 func (m *KnownTypes) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if m.Dur != nil {
@@ -3424,9 +3421,6 @@ func (m *KnownTypes) Size() (n int) {
 }
 
 func (m *ProtoTypes) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if m.NullableTimestamp != nil {
@@ -3448,9 +3442,6 @@ func (m *ProtoTypes) Size() (n int) {
 }
 
 func (m *StdTypes) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if m.NullableTimestamp != nil {
@@ -3472,9 +3463,6 @@ func (m *StdTypes) Size() (n int) {
 }
 
 func (m *RepProtoTypes) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if len(m.NullableTimestamps) > 0 {
@@ -3508,9 +3496,6 @@ func (m *RepProtoTypes) Size() (n int) {
 }
 
 func (m *RepStdTypes) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if len(m.NullableTimestamps) > 0 {
@@ -3544,9 +3529,6 @@ func (m *RepStdTypes) Size() (n int) {
 }
 
 func (m *MapProtoTypes) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if len(m.NullableTimestamp) > 0 {
@@ -3600,9 +3582,6 @@ func (m *MapProtoTypes) Size() (n int) {
 }
 
 func (m *MapStdTypes) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if len(m.NullableTimestamp) > 0 {
@@ -3656,9 +3635,6 @@ func (m *MapStdTypes) Size() (n int) {
 }
 
 func (m *OneofProtoTypes) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if m.OneOfProtoTimes != nil {
@@ -3671,9 +3647,6 @@ func (m *OneofProtoTypes) Size() (n int) {
 }
 
 func (m *OneofProtoTypes_Timestamp) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if m.Timestamp != nil {
@@ -3683,9 +3656,6 @@ func (m *OneofProtoTypes_Timestamp) Size() (n int) {
 	return n
 }
 func (m *OneofProtoTypes_Duration) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if m.Duration != nil {
@@ -3695,9 +3665,6 @@ func (m *OneofProtoTypes_Duration) Size() (n int) {
 	return n
 }
 func (m *OneofStdTypes) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if m.OneOfStdTimes != nil {
@@ -3710,9 +3677,6 @@ func (m *OneofStdTypes) Size() (n int) {
 }
 
 func (m *OneofStdTypes_Timestamp) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if m.Timestamp != nil {
@@ -3722,9 +3686,6 @@ func (m *OneofStdTypes_Timestamp) Size() (n int) {
 	return n
 }
 func (m *OneofStdTypes_Duration) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if m.Duration != nil {

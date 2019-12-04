@@ -1,6 +1,8 @@
 gopsutil: psutil for golang
 ==============================
 
+current version: 2.18.11
+
 .. image:: https://circleci.com/gh/shirou/gopsutil.svg?&style=shield
         :target: https://circleci.com/gh/shirou/gopsutil
 
@@ -10,7 +12,7 @@ gopsutil: psutil for golang
 .. image:: https://godoc.org/github.com/shirou/gopsutil?status.svg
         :target: http://godoc.org/github.com/shirou/gopsutil
 
-This is a port of psutil (http://pythonhosted.org/psutil/). The challenge is porting all
+This is a port of psutil (https://github.com/giampaolo/psutil). The challenge is porting all
 psutil functions on some architectures.
 
 
@@ -116,6 +118,10 @@ Several methods have been added which are not present in psutil, but will provid
   - PlatformVersion       (ex: "Ubuntu 13.10")
   - VirtualizationSystem  (ex: "LXC")
   - VirtualizationRole    (ex: "guest"/"host")
+
+- IOCounters
+
+  - Label (linux only)    The registered `device mapper name <https://www.kernel.org/doc/Documentation/ABI/testing/sysfs-block-dm>`_
 
 - cpu/CPUInfo()  (linux, freebsd)
 
@@ -296,7 +302,7 @@ Related Works
 
 I have been influenced by the following great works:
 
-- psutil: http://pythonhosted.org/psutil/
+- psutil: https://github.com/giampaolo/psutil
 - dstat: https://github.com/dagwieers/dstat
 - gosigar: https://github.com/cloudfoundry/gosigar/
 - goprocinfo: https://github.com/c9s/goprocinfo

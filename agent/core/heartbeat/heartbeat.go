@@ -2,96 +2,110 @@ package heartbeat
 
 import (
 	"bytes"
-	"encoding/json"
 	"io/ioutil"
 	"net/http"
+	"runtime"
 	"time"
 
-	ces_config "github.com/huaweicloud/telescope/agent/core/ces/config"
-	ces_utils "github.com/huaweicloud/telescope/agent/core/ces/utils"
+	cesConfig "github.com/huaweicloud/telescope/agent/core/ces/config"
+	cesUtils "github.com/huaweicloud/telescope/agent/core/ces/utils"
 	"github.com/huaweicloud/telescope/agent/core/channel"
 	"github.com/huaweicloud/telescope/agent/core/logs"
-	"github.com/huaweicloud/telescope/agent/core/lts"
-	lts_config "github.com/huaweicloud/telescope/agent/core/lts/config"
-	lts_errs "github.com/huaweicloud/telescope/agent/core/lts/errs"
-	lts_utils "github.com/huaweicloud/telescope/agent/core/lts/utils"
 	"github.com/huaweicloud/telescope/agent/core/upgrade"
 	"github.com/huaweicloud/telescope/agent/core/utils"
+	"github.com/json-iterator/go"
 )
 
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
+
+// HeartBeat ...
 type HeartBeat struct {
-	LtsDetails string
 	CesDetails string
 }
 
-//load services(lts,ces) detail content from service data channel
+// LoadHbServicesDetails ...
+// load services(ces) detail content from service data channel
 func (hb *HeartBeat) LoadHbServicesDetails(ch chan channel.HBServiceData) {
 	for {
 		hbServiceData := <-ch
-		if hbServiceData.Service == lts_utils.SERVICE {
-			hb.LtsDetails = hbServiceData.Detail
-		} else if hbServiceData.Service == ces_utils.Service {
+		if hbServiceData.Service == cesUtils.Service {
 			hb.CesDetails = hbServiceData.Detail
 		} else {
-			logs.GetLogger().Warnf("Return service [%s] not matched. ", hbServiceData.Service)
+			logs.GetCesLogger().Warnf("Return service [%s] not matched. ", hbServiceData.Service)
 		}
 	}
 }
 
+// ProduceHeartBeat ...
 // Start the heartbeat timer, it will send heartbeat message to heartbeat channel periodically
 func (hb *HeartBeat) ProduceHeartBeat(heartbeat chan *channel.HBEntity) {
 	cronTime := utils.HB_CRON_JOB_TIME_SECOND //set default
 	ticker := time.NewTicker(time.Duration(cronTime) * time.Second)
 
-	for _ = range ticker.C {
-		heartbeat <- channel.NewHBEntity(channel.Running, time.Now().Unix()*1000, lts_config.GetConfig().Enable, lts_errs.GetLtsDetail(), hb.CesDetails)
+	i, j := 0, 0
+	for range ticker.C {
+		heartbeat <- channel.NewHBEntity(channel.Running, time.Now().Unix()*1000, hb.CesDetails)
+		logs.GetCesLogger().Infof("Start to produce heartbeat and current goroutine number is: %d", runtime.NumGoroutine())
 		//clear last hb details to avoid duplicate metadata send to hb server
 		hb.CesDetails = ""
-		hb.LtsDetails = ""
 		//support hot load services and common config file
-		utils.ReloadConfig()
-		lts.CronUpdateConfig()
-		ces_config.ReloadConfig()
+		utils.ReloadConfig(&i, &j)
+		cesConfig.ReloadConfig()
 	}
 }
 
+// ConsumeHeartBeat ...
 // Start the control service, it will keep receiving the heartbeat and re-send it to server
 func (hb *HeartBeat) ConsumeHeartBeat(heartbeat chan *channel.HBEntity) {
 	for {
 		HBData := <-heartbeat
 		hbResponse := sendHeartBeat(buildHeartBeatUrl(utils.POST_HEART_BEAT_URI), HBData)
 		if hbResponse != nil {
-			updateAgent(hbResponse)
+			updateConfig(hbResponse)
+			go updateAgent(hbResponse)
 		} else {
-			logs.GetLogger().Errorf("Failed to send heart beat, so current heartbeat entity is dismissed.")
+			logs.GetCesLogger().Errorf("Failed to send heart beat, so current heartbeat entity is dismissed.")
 		}
 	}
 }
 
-func updateAgent(hbReponse *channel.HBResponse) {
-	if hbReponse.Version != utils.AGENT_VERSION {
-		err := upgrade.Download(hbReponse.DownloadUrl, hbReponse.Version, hbReponse.Md5)
-		if err != nil {
-			logs.GetLogger().Errorf("Download new package failed, err:%s", err.Error())
-		}
+func updateConfig(hbResponse *channel.HBResponse) {
+	//put services(ces) config to config channel
+	channel.GetCesConfigChan() <- hbResponse.CesConfig
+}
+
+func updateAgent(hbResponse *channel.HBResponse) {
+	if hbResponse.Version == utils.AgentVersion {
+		logs.GetCesLogger().Debug("Agent version matches the version supported by server and do not need to update.")
+		return
+	}
+	if hbResponse.DownloadUrl == "" {
+		logs.GetCesLogger().Error("Prepare UpdateAgent failed, hbResponse DownloadUrl is empty.")
+		return
+	}
+	if hbResponse.Md5 == "" {
+		logs.GetCesLogger().Error("Prepare UpdateAgent failed, hbResponse Md5 is empty.")
+		return
 	}
 
-	//put services(lts,ces) config to config channel
-	channel.GetLtsConfigChan() <- hbReponse.LtsConfig
-	channel.GetCesConfigChan() <- hbReponse.CesConfig
+	err := upgrade.Download(hbResponse.DownloadUrl, hbResponse.Version, hbResponse.Md5)
+	if err != nil {
+		logs.GetCesLogger().Errorf("Download new package failed, err:%s", err.Error())
+	}
 }
 
 func buildHeartBeatUrl(uri string) string {
-	return ces_config.GetConfig().Endpoint + "/" + utils.API_CES_VERSION + "/" + utils.GetConfig().ProjectId + uri
+	return cesConfig.GetConfig().Endpoint + utils.SLASH + utils.APICESVersion + utils.SLASH + utils.GetConfig().ProjectId + uri
 }
 
+// SendSignalHeartBeat ...
 func SendSignalHeartBeat(hb *channel.HBEntity) {
 	sigHBResponse := sendHeartBeat(buildHeartBeatUrl(utils.POST_HEART_BEAT_URI), hb)
 
 	if sigHBResponse != nil {
-		logs.GetLogger().Info("Success to send agent signal hearbeat.")
+		logs.GetCesLogger().Info("Success to send agent signal heartbeat.")
 	} else {
-		logs.GetLogger().Error("Failed to send agent signal hearbeat.")
+		logs.GetCesLogger().Error("Failed to send agent signal heartbeat.")
 	}
 }
 
@@ -99,38 +113,38 @@ func SendSignalHeartBeat(hb *channel.HBEntity) {
 func sendHeartBeat(url string, hb *channel.HBEntity) *channel.HBResponse {
 	hbEntityBytes, err := json.Marshal(*hb)
 	if err != nil {
-		logs.GetLogger().Infof("Failed marshall ces heartbeat, error is %s", err.Error())
+		logs.GetCesLogger().Infof("Failed marshall ces heartbeat, error is %s", err.Error())
 		return nil
 	}
-	logs.GetLogger().Debugf("Heartbeat request url is: %s", url)
+	logs.GetCesLogger().Debugf("Heartbeat request url is: %s", url)
+
 	request, rErr := http.NewRequest("POST", url, bytes.NewBuffer(hbEntityBytes))
 	if rErr != nil {
-		logs.GetLogger().Errorf("Create request Error:", rErr.Error())
+		logs.GetCesLogger().Errorf("Create request Error:", rErr.Error())
 		return nil
 	}
 
 	res, err := utils.HTTPSend(request, "HB")
-
 	if err != nil {
-		logs.GetLogger().Errorf("Failed to request for server, error is %s", err.Error())
+		logs.GetCesLogger().Errorf("Failed to request for server, error is %s", err.Error())
 		return nil
 	}
-
 	defer res.Body.Close()
+
 	if res.StatusCode == http.StatusOK {
-		logs.GetLogger().Debug("Success to send heartbeat.")
+		logs.GetCesLogger().Debug("Success to send heartbeat.")
 		hbResponse := channel.HBResponse{}
 		resBodyBytes, _ := ioutil.ReadAll(res.Body)
-		logs.GetLogger().Debugf("HeartBeat response: %s", string(resBodyBytes))
+		logs.GetCesLogger().Debugf("HeartBeat response: %s", string(resBodyBytes))
 		err = json.Unmarshal(resBodyBytes, &hbResponse)
 		if err != nil {
-			logs.GetLogger().Errorf("Failed to unmarshal response [%s].", string(resBodyBytes))
+			logs.GetCesLogger().Errorf("Failed to unmarshal response [%s].", string(resBodyBytes))
 			return nil
 		}
 		return &hbResponse
 	} else {
 		resBodyBytes, _ := ioutil.ReadAll(res.Body)
-		logs.GetLogger().Errorf("Failed to send heartbeat and the response code [%d], response content is %s", res.StatusCode, string(resBodyBytes))
+		logs.GetCesLogger().Errorf("Failed to send heartbeat and the response code [%d], response content is %s", res.StatusCode, string(resBodyBytes))
 		return nil
 	}
 }

@@ -1252,9 +1252,6 @@ func encodeVarintPopulateStdtypes(dAtA []byte, v uint64) []byte {
 	return dAtA
 }
 func (m *StdTypes) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if m.NullableTimestamp != nil {
@@ -1276,9 +1273,6 @@ func (m *StdTypes) Size() (n int) {
 }
 
 func (m *RepStdTypes) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if len(m.NullableTimestamps) > 0 {
@@ -1312,9 +1306,6 @@ func (m *RepStdTypes) Size() (n int) {
 }
 
 func (m *MapStdTypes) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if len(m.NullableTimestamp) > 0 {
@@ -1368,9 +1359,6 @@ func (m *MapStdTypes) Size() (n int) {
 }
 
 func (m *OneofStdTypes) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if m.OneOfStdTimes != nil {
@@ -1383,9 +1371,6 @@ func (m *OneofStdTypes) Size() (n int) {
 }
 
 func (m *OneofStdTypes_Timestamp) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if m.Timestamp != nil {
@@ -1395,9 +1380,6 @@ func (m *OneofStdTypes_Timestamp) Size() (n int) {
 	return n
 }
 func (m *OneofStdTypes_Duration) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if m.Duration != nil {

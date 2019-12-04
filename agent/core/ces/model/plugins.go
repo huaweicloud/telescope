@@ -1,16 +1,19 @@
 package model
 
 import (
-	"encoding/json"
 	"io/ioutil"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"time"
 
 	"github.com/huaweicloud/telescope/agent/core/ces/config"
-	ces_utils "github.com/huaweicloud/telescope/agent/core/ces/utils"
 	"github.com/huaweicloud/telescope/agent/core/logs"
 	"github.com/huaweicloud/telescope/agent/core/utils"
+	"github.com/json-iterator/go"
 )
+
+var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 // PluginScheduler is the type for plugin scheduler
 type PluginScheduler struct {
@@ -21,10 +24,6 @@ type PluginScheduler struct {
 // NewPluginScheduler create a plugin scheduler by a plugin config
 func NewPluginScheduler(p *config.EachPluginConfig) *PluginScheduler {
 	scheduler := PluginScheduler{Plugin: p}
-	if p.Crontime < ces_utils.DefaultPluginCronTime {
-		logs.GetCesLogger().Errorf("Plugin crontime is %v, less than the default crontime %v seconds. Use default crontime.", p.Crontime, ces_utils.DefaultPluginCronTime)
-		p.Crontime = ces_utils.DefaultPluginCronTime
-	}
 	scheduler.Ticker = time.NewTicker(time.Duration(p.Crontime) * time.Second)
 	return &scheduler
 }
@@ -50,7 +49,6 @@ func (ps *PluginScheduler) Schedule(data chan *InputMetric) {
 
 // PluginCmd output the plugin metric data by a plugin config
 func PluginCmd(plugin *config.EachPluginConfig) *InputMetric {
-
 	var result InputMetric
 
 	if !utils.IsFileExist(plugin.Path) {
@@ -58,29 +56,68 @@ func PluginCmd(plugin *config.EachPluginConfig) *InputMetric {
 		return nil
 	}
 
+	workDir, err := filepath.Abs(filepath.Dir(os.Args[0]))
+	if err != nil {
+		logs.GetCesLogger().Errorf("Get current work path error: %v", err)
+	}
+
 	cmd := exec.Command(plugin.Path)
+	cmd.Dir = workDir
 	stdout, err := cmd.StdoutPipe()
+
 	if err != nil {
 		logs.GetCesLogger().Errorf("Plugin execute cmd StdoutPipe error: %v", err)
 		return nil
 	}
 	defer stdout.Close()
-	defer cmd.Wait()
 	if err := cmd.Start(); err != nil {
 		logs.GetCesLogger().Errorf("Plugin execute cmd Start error: %v", err)
 		return nil
 	}
 
-	opBytes, err := ioutil.ReadAll(stdout)
-	if err != nil {
-		logs.GetCesLogger().Errorf("Plugin read all stdout error: %v", err)
-		return nil
-	}
+	done := make(chan error, 1)
+	go func() {
+		defer func() {
+			done <- cmd.Wait()
+		}()
+		opBytes, err := ioutil.ReadAll(stdout)
+		if err != nil {
+			logs.GetCesLogger().Errorf("Plugin read all stdout error: %v, time: %v", err, time.Now().UnixNano())
+			return
+		}
 
-	err = json.Unmarshal(opBytes, &result)
-	if err != nil {
-		logs.GetCesLogger().Errorf("Plugin unmarshal result error: %v", err)
+		if len(opBytes) == 0 {
+			logs.GetCesLogger().Warn("Plugin read all stdout but get empty")
+			return
+		}
+
+		err = json.Unmarshal(opBytes, &result)
+		if err != nil {
+			logs.GetCesLogger().Errorf("Plugin unmarshal result error: %v", err)
+			return
+		}
+
+		logs.GetCesLogger().Debugf("Plugin output is: %v", result)
+	}()
+
+	timeout := plugin.MaxTimeoutProcNum * plugin.Crontime
+	pid := cmd.Process.Pid
+	select {
+	case <-time.After(time.Duration(timeout) * time.Second):
+		logs.GetCesLogger().Warnf("Plugin(%v) has not returned output for %d seconds, so kill it(PID:%d).", *plugin, timeout, pid)
+		if err := cmd.Process.Kill(); err != nil {
+			logs.GetCesLogger().Errorf("Failed to kill plugin(PID:%d), error is: %v", pid, err)
+		} else {
+			logs.GetCesLogger().Infof("Kill plugin(PID:%d) successfully", pid)
+			cmd.Wait()
+		}
 		return nil
+	case err := <-done:
+		if err != nil {
+			logs.GetCesLogger().Errorf("Plugin(PID:%d) process finished with error: %v", pid, err)
+			return nil
+		}
+		logs.GetCesLogger().Infof("Plugin(PID:%d) process finished successfully", pid)
+		return &result
 	}
-	return &result
 }

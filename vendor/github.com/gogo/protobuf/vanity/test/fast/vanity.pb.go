@@ -124,9 +124,6 @@ func encodeVarintVanity(dAtA []byte, offset int, v uint64) int {
 	return offset + 1
 }
 func (m *A) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if m.Strings != nil {

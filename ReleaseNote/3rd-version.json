@@ -1,0 +1,118 @@
+{
+  "github.com/buger/jsonparser": {
+    "version": "",
+    "license": "MIT"
+  },
+  "github.com/cihub/seelog": {
+    "version": "",
+    "license": "BSD"
+  },
+  "github.com/go-ole/go-ole": {
+    "version": "",
+    "license": "MIT "
+  },
+  "github.com/gogo/protobuf": {
+    "version": "",
+    "license": "Modified BSD "
+  },
+  "github.com/gxed/eventfd": {
+    "version": "",
+    "license": "The 3-Clause BSD License"
+  },
+  "github.com/gxed/GoEndian": {
+    "version": "",
+    "license": "Apache-2.0"
+  },
+  "github.com/ipfs/go-log": {
+    "version": "",
+    "license": "MIT"
+  },
+  "github.com/joeshaw/multierror": {
+    "version": "",
+    "license": "MIT"
+  },
+  "github.com/jtolds/gls": {
+    "version": "",
+    "license": "MIT"
+  },
+  "github.com/kardianos/service": {
+    "version": "",
+    "license": "zlib"
+  },
+  "github.com/libp2p/go-reuseport": {
+    "version": "",
+    "license": "ISC"
+  },
+  "github.com/libp2p/go-sockaddr": {
+    "version": "",
+    "license": "BSD"
+  },
+  "github.com/mackerelio/go-osstat": {
+    "version": "",
+    "license": "Apache-2.0"
+  },
+  "github.com/mattn/go-colorable":{
+    "version": "",
+    "license": "MIT"
+  },
+  "github.com/mattn/go-isatty":{
+    "version": "",
+    "license": "MIT"
+  },
+  "github.com/modern-go/concurrent":{
+    "version": "",
+    "license": "Apache-2.0"
+  },
+  "github.com/modern-go/reflect2": {
+    "version": "",
+    "license": "Apache-2.0"
+  },
+  "github.com/nightlyone/lockfile": {
+    "version": "",
+    "license": "MIT"
+  },
+  "github.com/opentracing/opentracing-go": {
+    "version": "",
+    "license": "Apache-2.0"
+  },
+  "github.com/robfig/cron": {
+    "version": "",
+    "license": "MIT"
+  },
+  "github.com/shirou/gopsutil": {
+    "version": "",
+    "license": "BSD"
+  },
+  "github.com/shirou/w32": {
+    "version": "",
+    "license": "The 3-Clause BSD License"
+  },
+  "github.com/smallnest/gofsm": {
+    "version": "",
+    "license": "Apache-2.0"
+  },
+  "github.com/smartystreets/assertions":{
+    "version": "",
+    "license": "MIT"
+  },
+  "github.com/smartystreets/goconvey": {
+    "version": "",
+    "license": "MIT"
+  },
+  "github.com/StackExchange/wmi": {
+    "version": "",
+    "license": "MIT"
+  },
+  "github.com/whyrusleeping/go-logging": {
+    "version": "",
+    "license": "BSD"
+  },
+  "github.com/yougg/assert": {
+    "version": "",
+    "license": "MIT"
+  },
+  "github.com/yougg/mockfn": {
+    "version": "",
+    "license": "MIT"
+  }
+}

@@ -11,10 +11,8 @@ import proto "github.com/gogo/protobuf/proto"
 import fmt "fmt"
 import math "math"
 
-import (
-	context "golang.org/x/net/context"
-	grpc "google.golang.org/grpc"
-)
+import context "golang.org/x/net/context"
+import grpc "google.golang.org/grpc"
 
 // Reference imports to suppress errors if they are not otherwise used.
 var _ = proto.Marshal
@@ -136,10 +134,8 @@ var _ grpc.ClientConn
 // is compatible with the grpc package it is being compiled against.
 const _ = grpc.SupportPackageIsVersion4
 
-// DeprecatedServiceClient is the client API for DeprecatedService service.
-//
-// For semantics around ctx use and closing/ending streaming RPCs, please refer to https://godoc.org/google.golang.org/grpc#ClientConn.NewStream.
-//
+// Client API for DeprecatedService service
+
 // Deprecated: Do not use.
 type DeprecatedServiceClient interface {
 	// DeprecatedCall takes a DeprecatedRequest and returns a DeprecatedResponse.
@@ -165,8 +161,8 @@ func (c *deprecatedServiceClient) DeprecatedCall(ctx context.Context, in *Deprec
 	return out, nil
 }
 
-// DeprecatedServiceServer is the server API for DeprecatedService service.
-//
+// Server API for DeprecatedService service
+
 // Deprecated: Do not use.
 type DeprecatedServiceServer interface {
 	// DeprecatedCall takes a DeprecatedRequest and returns a DeprecatedResponse.

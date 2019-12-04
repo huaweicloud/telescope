@@ -1,13 +1,13 @@
 package config
 
 import (
-	"encoding/json"
 	"os"
 	"sync"
 	"time"
 
 	"github.com/huaweicloud/telescope/agent/core/logs"
 	"github.com/huaweicloud/telescope/agent/core/utils"
+	"github.com/json-iterator/go"
 )
 
 // CESConfig is the type for heartbeat response
@@ -15,6 +15,7 @@ type CESConfig struct {
 	Enable            bool
 	Endpoint          string
 	EnableProcessList []HbProcess `json:"enable_processes"`
+	SpecifiedProcList []string    `json:"specified_procs"`
 	EnablePlugin      bool
 	ExternalService   string
 }
@@ -26,6 +27,7 @@ type HbProcess struct {
 }
 
 var (
+	json      = jsoniter.ConfigCompatibleWithStandardLibrary
 	cesConfig *CESConfig
 	mutex     sync.Mutex
 )
@@ -86,6 +88,7 @@ func GetConfig() *CESConfig {
 func ReloadConfig() *CESConfig {
 	originalEnable := cesConfig.Enable
 	originalEnableProcessList := cesConfig.EnableProcessList
+	originalSpecifiedProcList := cesConfig.SpecifiedProcList
 	newCesConfig, err := ReadConfig()
 	for {
 		if newCesConfig == nil || err != nil {
@@ -95,6 +98,7 @@ func ReloadConfig() *CESConfig {
 		} else {
 			newCesConfig.Enable = originalEnable
 			newCesConfig.EnableProcessList = originalEnableProcessList
+			newCesConfig.SpecifiedProcList = originalSpecifiedProcList
 			cesConfig = newCesConfig
 			return cesConfig
 		}

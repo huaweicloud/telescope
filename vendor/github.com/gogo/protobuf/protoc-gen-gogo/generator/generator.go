@@ -2196,9 +2196,7 @@ func (g *Generator) generateMessage(message *Descriptor) {
 				g.RecordTypeUse(field.GetTypeName())
 			}
 		}
-		if gogoproto.HasUnkeyed(g.file.FileDescriptorProto, message.DescriptorProto) {
-			g.P("XXX_NoUnkeyedLiteral\tstruct{} `json:\"-\"`") // prevent unkeyed struct literals
-		}
+		g.P("XXX_NoUnkeyedLiteral\tstruct{} `json:\"-\"`") // prevent unkeyed struct literals
 		if len(message.ExtensionRange) > 0 {
 			if gogoproto.HasExtensionsMap(g.file.FileDescriptorProto, message.DescriptorProto) {
 				messageset := ""
@@ -2213,9 +2211,7 @@ func (g *Generator) generateMessage(message *Descriptor) {
 		if gogoproto.HasUnrecognized(g.file.FileDescriptorProto, message.DescriptorProto) {
 			g.P("XXX_unrecognized\t[]byte `json:\"-\"`")
 		}
-		if gogoproto.HasSizecache(g.file.FileDescriptorProto, message.DescriptorProto) {
-			g.P("XXX_sizecache\tint32 `json:\"-\"`")
-		}
+		g.P("XXX_sizecache\tint32 `json:\"-\"`")
 		g.Out()
 		g.P("}")
 	} else {

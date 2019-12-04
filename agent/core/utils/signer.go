@@ -16,6 +16,7 @@ import (
 )
 
 const (
+	// COMMA ...
 	COMMA          string = ","
 	SEMICOLON      string = ";"
 	COLON          string = ":"
@@ -41,6 +42,7 @@ const (
 	HeaderContentType = "content-type"
 )
 
+// Signer ...
 type Signer struct {
 	AccessKey string
 	SecretKey string
@@ -50,6 +52,7 @@ type Signer struct {
 	reqTime   time.Time
 }
 
+// NewSigner ...
 func NewSigner(serviceName string) *Signer {
 	return &Signer{
 		AccessKey: GetConfig().AccessKey,
@@ -68,6 +71,7 @@ func (sig *Signer) getReqTime(req *http.Request) (reqTime time.Time, err error) 
 	}
 }
 
+// CanonicalRequest ...
 func CanonicalRequest(req *http.Request) (string, error) {
 	data, err := requestPayload(req)
 	if err != nil {
@@ -268,7 +272,7 @@ func signedHeaders(r *http.Request) string {
 	return strings.Join(a, SEMICOLON)
 }
 
-// Get the finalized value for the "Authorization" header. The signature parameter is the output from SignStringToSign
+// AuthHeaderValue Get the finalized value for the "Authorization" header. The signature parameter is the output from SignStringToSign
 func AuthHeaderValue(signature, accessKey, credentialScope, signedHeaders string) string {
 	result := bytes.Buffer{}
 	result.WriteString(Algorithm)
@@ -283,10 +287,11 @@ func AuthHeaderValue(signature, accessKey, credentialScope, signedHeaders string
 	return result.String()
 }
 
+// GetAuthorization ...
 func (sig *Signer) GetAuthorization(req *http.Request) (string, error) {
 	var authorization string
 	if req == nil {
-		return authorization, errors.New("Verify failed, req is nil.")
+		return authorization, errors.New("Verify failed, req is nil")
 	}
 
 	reqTime, err := sig.getReqTime(req)

@@ -1,6 +1,7 @@
 package services
 
 import (
+	"sync"
 	"time"
 
 	"github.com/huaweicloud/telescope/agent/core/ces/aggregate"
@@ -14,165 +15,165 @@ import (
 	"github.com/shirou/gopsutil/process"
 )
 
+// simultaneously modify collectorNum in aggregateMetric when modify the length of collectorList
+var (
+	collectorList = []collectors.CollectorInterface{
+		&collectors.CPUCollector{},
+		&collectors.MemCollector{},
+		&collectors.DiskCollector{},
+		&collectors.NetCollector{},
+		&collectors.LoadCollector{},
+		&collectors.ProcStatusCollector{},
+	}
+)
+
 // StartMetricCollectTask cron job for metric collect
-func StartMetricCollectTask(data chan *model.InputMetric, agData chan model.InputMetricSlice) {
-
-	var collectorList []collectors.CollectorInterface
-
-	// simultaneously modify collectorNum in StartAggregateTask when modify the length of collectorList
-	collectorList = append(collectorList, &collectors.CPUCollector{})
-	collectorList = append(collectorList, &collectors.MemCollector{})
-	collectorList = append(collectorList, &collectors.DiskCollector{})
-	collectorList = append(collectorList, &collectors.NetCollector{})
-	collectorList = append(collectorList, &collectors.LoadCollector{})
-	collectorList = append(collectorList, &collectors.ProcStatusCollector{})
-
-	metricSliceArr := make([]model.InputMetricSlice, len(collectorList))
-
-	counter := 0
-
+func StartMetricCollectTask() {
 	time.Sleep(time.Duration(5) * time.Second)
+	counter := 0
+	// set default
+	cronTime := utils.DisableDetailDataCronJobTimeSecond
+	// just send one during a cron interval
+	sendCount := 1
 
-	cronTime := utils.DETAIL_DATA_CRON_JOB_TIME_SECOND//set default
+	// check if detail metric is enable
+	if utils.GetConfig().DetailMonitorEnable {
+		logs.GetCesLogger().Infof("Detail data monitor is enabled.")
+		sendCount = cesUtils.SendTotal
+		cronTime = utils.DetailDataCronJobTimeSecond
+	}
 	ticker := time.NewTicker(time.Duration(cronTime) * time.Second)
+	// metricClass store different type of metric
+	collectorNum := len(collectorList)
+	var enableProcesses = config.GetConfig().EnableProcessList
+	var metricClass = make([]model.InputMetricSlice, collectorNum+len(enableProcesses))
+	for range ticker.C {
+		if !config.GetConfig().Enable {
+			continue
+		}
 
-	for _ = range ticker.C{
-		if config.GetConfig().Enable {
-			collectTime := time.Now().Unix() * 1000
-
-			allMetric := new(model.InputMetric)
-			allMetric.CollectTime = collectTime
-
-			allMetricData := []model.Metric{}
-
-			for i, collector := range collectorList {
-
-				tmp := collector.Collect(collectTime)
-
-				if tmp != nil {
-					for _, value := range tmp.Data {
-						allMetricData = append(allMetricData, value)
-					}
-					metricSliceArr[i] = append(metricSliceArr[i], tmp)
-				}
+		// allMetricData store all collect metrics
+		var allMetricData []model.Metric
+		now := utils.GetCurrTSInMs()
+		for i, collector := range collectorList {
+			// collect basic 6 system metrics
+			metric := collector.Collect(now)
+			if metric != nil {
+				allMetricData = append(allMetricData, metric.Data...)
 			}
+			metricClass[i] = append(metricClass[i], metric)
+		}
 
-			enableProcessList := config.GetConfig().EnableProcessList
+		// collect customized processes metrics
+		if len(enableProcesses) > 0 {
+			wg := &sync.WaitGroup{}
+			wg.Add(len(enableProcesses))
+			for j, proc := range enableProcesses {
+				go func(hb config.HbProcess, j int) {
+					defer wg.Done()
 
-			if len(enableProcessList) > 0 {
-				processSliceArr := make([]model.InputMetricSlice, len(enableProcessList))
-
-				for j, eachProcess := range enableProcessList {
-					pid := eachProcess.Pid
-					isExist, _ := process.PidExists(pid)
-					if isExist {
-						eachProcess, _ := process.NewProcess(pid)
-						eachProcessCollector := new(collectors.ProcessCollector)
-						eachProcessCollector.Process = eachProcess
-						eachRes := eachProcessCollector.Collect(collectTime)
-						if eachRes != nil {
-							for _, value := range eachRes.Data {
-								allMetricData = append(allMetricData, value)
-							}
-							processSliceArr[j] = append(processSliceArr[j], eachRes)
-
+					pid := hb.Pid
+					exist, err := process.PidExists(pid)
+					if nil != err || !exist {
+						return
+					}
+					p, err := process.NewProcess(pid)
+					if nil != err {
+						return
+					}
+					metricChan := make(chan *model.InputMetric, 1)
+					go func() {
+						pc := &collectors.ProcessCollector{Process: p}
+						metricChan <- pc.Collect(now)
+					}()
+					select {
+					case metric := <-metricChan:
+						if metric != nil {
+							allMetricData = append(allMetricData, metric.Data...)
 						}
+						metricClass[collectorNum+j] = append(metricClass[collectorNum+j], metric)
+					case <-time.After(3 * time.Second):
+						logs.GetCesLogger().Errorf("collect processes metrics timeout(PID:%d)", pid)
 					}
-
-				}
-
-				newMetricSliceArr := make([]model.InputMetricSlice, len(collectorList)+len(enableProcessList))
-				copy(newMetricSliceArr, metricSliceArr)
-				copy(newMetricSliceArr[len(collectorList):(len(collectorList) + len(enableProcessList))], processSliceArr)
-				metricSliceArr = newMetricSliceArr
+				}(proc, j)
 			}
+			wg.Wait()
+		}
+		allMetric := &model.InputMetric{
+			CollectTime: now,
+			Data:        allMetricData,
+		}
+		logs.GetCesLogger().Debugf("origin data is: %v", allMetric)
 
-			allMetric.Data = allMetricData
-			data <- allMetric
-			counter++
-
-			if counter == 6 {
-				for i, eachMetricSlice := range metricSliceArr {
-					agData <- eachMetricSlice
-					metricSliceArr[i] = metricSliceArr[i][:0]
+		if utils.GetConfig().DetailMonitorEnable {
+			logs.GetCesLogger().Debugf("Begin to send detail metric data.")
+			go report.SendMetricData(BuildURL(cesUtils.PostRawMetricDataURI), allMetric, false)
+		}
+		if counter++; counter < sendCount {
+			continue
+		}
+		// reset timer counter per minute
+		counter = 0
+		// reset processes per minute
+		enableProcesses = config.GetConfig().EnableProcessList
+		// collect process count by input process command line argument
+		processCmdlines := config.GetConfig().SpecifiedProcList
+		logs.GetCesLogger().Debugf("process cmdline are %v", processCmdlines)
+		if lineCount := len(processCmdlines); lineCount > 0 {
+			spc := &collectors.SpeProcCountCollector{CmdLines: processCmdlines}
+			metric := spc.Collect(now)
+			if nil != metric {
+				for _, m := range metric.Data {
+					metricClass = append(metricClass, model.InputMetricSlice{
+						&model.InputMetric{
+							Data:        []model.Metric{m},
+							Type:        "cmdline",
+							CollectTime: now,
+						},
+					})
 				}
-				metricSliceArr = metricSliceArr[:len(collectorList)]
-				counter = 0
 			}
 		}
+		go aggregateMetric(metricClass)
+		// reset metricClass after report data per minute
+		metricClass = make([]model.InputMetricSlice, collectorNum+len(enableProcesses))
 	}
 }
 
-// StartAggregateTask task for aggregate metric in 1 minute
-func StartAggregateTask(agRes chan *model.InputMetric, agData chan model.InputMetricSlice) {
-
+// aggregateMetric aggregate metric per minute
+func aggregateMetric(metricClass []model.InputMetricSlice) {
 	var aggregatorList []aggregate.AggregatorInterface
-
 	aggregatorList = append(aggregatorList, &aggregate.AvgValue{})
-	// don't open, first we only support average
+	// TODO only support average now, need configuration to enable max/min function
 	// aggregatorList = append(aggregatorList, &aggregate.MaxValue{})
 	// aggregatorList = append(aggregatorList, &aggregate.MinValue{})
 
 	allMetric := new(model.InputMetric)
-	tmpData := []model.Metric{}
-	count := 0
-	collectorNum := 6
-
-	for {
-		tmp := <-agData
+	for _, class := range metricClass {
+		if nil == class || len(class) == 0 {
+			continue
+		}
 		for _, aggregator := range aggregatorList {
-
-			eachRes := aggregator.Aggregate(tmp)
-
-			if eachRes != nil {
-				for _, value := range eachRes.Data {
-					tmpData = append(tmpData, value)
-				}
-
-				if allMetric.CollectTime == 0 {
-					allMetric.CollectTime = eachRes.CollectTime
-				}
+			metric := aggregator.Aggregate(class)
+			if metric == nil {
+				continue
+			}
+			for _, value := range metric.Data {
+				allMetric.Data = append(allMetric.Data, value)
 			}
 
+			if allMetric.CollectTime == 0 {
+				allMetric.CollectTime = metric.CollectTime
+			}
 		}
-		// count length is the collectorNum-1, now the num of collector is 6, and the enabled processes should be considered
-		enableProcessList := config.GetConfig().EnableProcessList
-		if count < collectorNum+len(enableProcessList)-1 {
-			count++
-			continue
-		} else {
-
-			allMetric.Data = tmpData
-			agRes <- allMetric
-			tmpData = []model.Metric{}
-			count = 0
-			allMetric = new(model.InputMetric)
-		}
-
 	}
-
+	logs.GetCesLogger().Debugf("aggregate data is %v", allMetric)
+	report.SendMetricData(BuildURL(cesUtils.PostAggregatedMetricDataURI), allMetric, true)
 }
 
 // BuildURL build URL string by URI
 func BuildURL(destURI string) string {
 	var url string
-	url = config.GetConfig().Endpoint + "/" + utils.API_CES_VERSION + "/" + utils.GetConfig().ProjectId + destURI
+	url = config.GetConfig().Endpoint + utils.SLASH + utils.APICESVersion + utils.SLASH + utils.GetConfig().ProjectId + destURI
 	return url
-}
-
-// SendMetricTask task for post metric data
-func SendMetricTask(data, agRes chan *model.InputMetric) {
-	for {
-
-		select {
-		case metricDataOrigin := <-data:
-			logs.GetCesLogger().Debugf("origin data is: %v", *metricDataOrigin)
-			go report.SendMetricData(BuildURL(cesUtils.PostRawMetricDataURI), metricDataOrigin, false)
-		case metricDataAggregate := <-agRes:
-			logs.GetCesLogger().Debugf("aggregate data is %v", *metricDataAggregate)
-			time.Sleep(5 * time.Second)
-			go report.SendMetricData(BuildURL(cesUtils.PostAggregatedMetricDataURI), metricDataAggregate, true)
-		}
-
-	}
 }

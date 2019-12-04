@@ -13,16 +13,17 @@ var (
 	isLoaded   bool
 )
 
+// LogsConfig ...
 type LogsConfig struct {
-	CommonConfig string `xml:"common"`
-	LtsConfig    string `xml:"lts"`
-	CesConfig    string `xml:"ces"`
+	CommonConfig    string `xml:"common"`
+	CesConfig       string `xml:"ces"`
+	AssistantConfig string `xml:"assistant"`
 }
 
-var logfilenameRex = "filename=\"(.*).log\""
+var logFileNameRex = "filename=\"(.*).log\""
 
 func findLogfileName(logConfig string) string {
-	reg, err := regexp.Compile(logfilenameRex)
+	reg, err := regexp.Compile(logFileNameRex)
 	if err != nil {
 		return logConfig
 	}
@@ -62,13 +63,17 @@ func getCesLog() (config string) {
 	return findLogfileName(logsConfig.CesConfig)
 }
 
-func getLtsLog() (config string) {
+func getAssistantLog() (config string) {
 	if !isLoaded {
 		LoadConfig()
 	}
-	return findLogfileName(logsConfig.LtsConfig)
+	if logsConfig.AssistantConfig == "" {
+		return ""
+	}
+	return findLogfileName(logsConfig.AssistantConfig)
 }
 
+// LoadConfig ...
 func LoadConfig() {
 	pwd := GetCurrentDirectory()
 	content, err := ioutil.ReadFile(pwd + "/logs_config.xml")
