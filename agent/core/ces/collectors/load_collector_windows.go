@@ -10,5 +10,9 @@ type LoadCollector struct {
 
 // Collect implement the load Collector
 func (l *LoadCollector) Collect(collectTime int64) *model.InputMetric {
-	return nil
+	return &model.InputMetric{
+		Data:        nil,
+		Type:        "load",
+		CollectTime: collectTime,
+	}
 }

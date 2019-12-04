@@ -7,18 +7,20 @@ import (
 )
 
 const (
+	// FieldRequiredErrCode ...
 	FieldRequiredErrCode  = "ParamRequiredError"     //the field value is required
 	FieldMaxSizeErrCode   = "FieldMaxSizeError"      //the size of field error code
 	FieldLenErrCode       = "FieldLengthError"       //the length of field error code
 	FieldValueExistedCode = "FieldValueExistedError" //the field value existed code
 )
 
-//validate
+// Validator ...
 type Validator interface {
 	Validate() error
 	ParseJson(bytes []byte) error
 }
 
+// QueryStringParser ...
 type QueryStringParser interface {
 	Build(v url.Values)
 	Parse() (interface{}, error)
@@ -74,23 +76,25 @@ func (e *errInvalidField) Field() string {
 	return field
 }
 
+// SetObject ...
 func (e *errInvalidField) SetObject(obj string) {
 	e.object = obj
 }
 
+// ErrInvalidFields ...
 type ErrInvalidFields struct {
 	Object string
 	Errs   []ErrInvalidField
 }
 
-//add a new field invalid error
+// Add a new field invalid error
 func (fields *ErrInvalidFields) Add(field ErrInvalidField) {
 	field.SetObject(fields.Object)
 	fields.Errs = append(fields.Errs, field)
 
 }
 
-//get number of invalid field error
+// Len get number of invalid field error
 func (fields *ErrInvalidFields) Len() int {
 	return len(fields.Errs)
 }
@@ -106,12 +110,12 @@ func (fieldsfields ErrInvalidFields) Error() string {
 	return w.String()
 }
 
-// An ErrFieldRequired means the field need value,not nil.
+// ErrFieldRequired An ErrFieldRequired means the field need value,not nil.
 type ErrFieldRequired struct {
 	errInvalidField
 }
 
-// NewErrParamRequired creates a new required parameter error.
+// NewErrFieldRequired creates a new required parameter error.
 func NewErrFieldRequired(field string) *ErrFieldRequired {
 	return &ErrFieldRequired{
 		errInvalidField{
@@ -122,12 +126,13 @@ func NewErrFieldRequired(field string) *ErrFieldRequired {
 	}
 }
 
-//field size over the max, eg.The max size of field "message" is 10KB
+// ErrFieldMaxSize field size over the max, eg.The max size of field "message" is 10KB
 type ErrFieldMaxSize struct {
 	errInvalidField
 	max int
 }
 
+// NewErrFieldMaxSize ...
 func NewErrFieldMaxSize(field string, size int) *ErrFieldMaxSize {
 	return &ErrFieldMaxSize{
 		errInvalidField: errInvalidField{
@@ -139,12 +144,13 @@ func NewErrFieldMaxSize(field string, size int) *ErrFieldMaxSize {
 	}
 }
 
-//field length over the threshold
+// ErrFieldMaxLen field length over the threshold
 type ErrFieldMaxLen struct {
 	errInvalidField
 	threshold int
 }
 
+// NewErrFieldMaxLen ...
 func NewErrFieldMaxLen(field string, size int) *ErrFieldMaxLen {
 	return &ErrFieldMaxLen{
 		errInvalidField: errInvalidField{
@@ -156,11 +162,12 @@ func NewErrFieldMaxLen(field string, size int) *ErrFieldMaxLen {
 	}
 }
 
+// ErrFieldValueExisted ...
 type ErrFieldValueExisted struct {
 	errInvalidField
 }
 
-//field value existed
+// NewErrFieldValueExisted field value existed
 func NewErrFieldValueExisted(field string) *ErrFieldValueExisted {
 	return &ErrFieldValueExisted{
 		errInvalidField: errInvalidField{

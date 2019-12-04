@@ -321,9 +321,6 @@ func encodeVarintPopulateIssue42(dAtA []byte, v uint64) []byte {
 	return dAtA
 }
 func (m *UnorderedFields) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if m.B != nil {
@@ -339,9 +336,6 @@ func (m *UnorderedFields) Size() (n int) {
 }
 
 func (m *OrderedFields) Size() (n int) {
-	if m == nil {
-		return 0
-	}
 	var l int
 	_ = l
 	if m.B != nil {

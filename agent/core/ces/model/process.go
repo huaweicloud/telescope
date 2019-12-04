@@ -1,17 +1,17 @@
 package model
 
 import (
-	"sort"
-
-	"github.com/shirou/gopsutil/process"
-
 	"crypto/md5"
 	"fmt"
+	"sort"
 	"strconv"
+	"sync"
 	"time"
 
 	cesUtils "github.com/huaweicloud/telescope/agent/core/ces/utils"
+	"github.com/huaweicloud/telescope/agent/core/logs"
 	"github.com/huaweicloud/telescope/agent/core/utils"
+	"github.com/shirou/gopsutil/process"
 )
 
 // CPUProcess the type for top5 cpu process
@@ -21,10 +21,20 @@ type CPUProcess struct {
 	CPU        float64 `json:"cpu"`
 	Cmdline    string  `json:"cmdline"`
 	CreateTime int64   `json:"create_time"`
+	Process    *process.Process
 }
 
 // CPUProcessList the type for CPUProcess slice
 type CPUProcessList []*CPUProcess
+
+func (c CPUProcessList) String() string {
+	var result string
+	for _, v := range c {
+		result += fmt.Sprintf(" {PID is %d, Pname is %s, CPU percent is %f, Cmdline is %s, CreateTime is %d}", v.Pid, v.Pname, v.CPU, v.Cmdline, v.CreateTime)
+	}
+
+	return result
+}
 
 // ProcessInfo the type for process info
 type ProcessInfo struct {
@@ -50,41 +60,106 @@ type ProcessInfoDB struct {
 // ChProcessList used in channel
 type ChProcessList []*ProcessInfo
 
+func (c ChProcessList) String() string {
+	var result string
+	for _, v := range c {
+		result += fmt.Sprintf(" {PID is %d, Pname is %s, Cmdline is %s, CreateTime is %d}", v.Pid, v.Pname, v.Cmdline, v.CreateTime)
+	}
+
+	return result
+}
+
 // GetTop5CpuProcessList get top5 cpu process list for channel
 func GetTop5CpuProcessList() ChProcessList {
+	logs.GetCesLogger().Debug("Enter GetTop5CpuProcessList")
 	var top5CpuProcessList CPUProcessList
-	var top5ChProcessList ChProcessList
-	var createTimeErr error
-	allProcesses, _ := process.Processes()
+	allProcesses, err := process.Processes()
+	if err != nil {
+		logs.GetCesLogger().Errorf("GetTop5CpuProcessList get all process failed and error is: %v", err)
+		return []*ProcessInfo{}
+	}
+	allProcessesNum := len(allProcesses)
+	if allProcessesNum == 0 {
+		logs.GetCesLogger().Warnf("GetTop5CpuProcessList returns all process as empty")
+		return []*ProcessInfo{}
+	}
+	top5ChProcessList := make(ChProcessList, 0, allProcessesNum)
 
-	for _, eachProcess := range allProcesses {
-		eachProcessCPU, cpuErr := eachProcess.Percent(time.Second)
-		if cpuErr != nil {
-			continue
+	logs.GetCesLogger().Debugf("GetTop5CpuProcessList get all process successfully, processes are: %s", func() string {
+		var result string
+		for _, p := range allProcesses {
+			result += p.String()
 		}
-		eachProcessID := eachProcess.Pid
-		eachCPUProcess := new(CPUProcess)
-		eachCPUProcess.Pid = eachProcessID
-		eachCPUProcess.CPU = eachProcessCPU
-		eachCPUProcess.Cmdline, _ = eachProcess.Cmdline()
-		eachCPUProcess.CreateTime, createTimeErr = eachProcess.CreateTime()
+		return result
+	}())
+	logs.GetCesLogger().Debug("GetTop5CpuProcessList starts getting all process cpu percent")
+	cpuProcessChan := make(chan *CPUProcess, allProcessesNum)
+	wg := &sync.WaitGroup{}
+	wg.Add(allProcessesNum)
+	for _, eachProcess := range allProcesses {
+		go func(p *process.Process) {
+			defer wg.Done()
+
+			pid := p.Pid
+			logs.GetCesLogger().Debugf("GetTop5CpuProcessList in for and pid is: %d", pid)
+			eachCPUProcessChan := make(chan *CPUProcess, 1)
+			go func() {
+				cpuPercent, cpuErr := p.Percent(time.Duration(cesUtils.Top5ProcessSamplePeriodInSeconds) * time.Second)
+
+				if cpuErr != nil {
+					logs.GetCesLogger().Errorf("GetTop5CpuProcessList get cpu percent failed(PID:%d) and error is: %v. Maybe the process has died in most cases.", pid, err)
+					eachCPUProcessChan <- nil
+					return
+				}
+
+				cpuProcess := &CPUProcess{
+					Pid:     pid,
+					CPU:     cpuPercent,
+					Process: p,
+				}
+				eachCPUProcessChan <- cpuProcess
+				logs.GetCesLogger().Debugf("GetTop5CpuProcessList get cpu percent successfully(PID:%d)", pid)
+			}()
+			select {
+			case cpuProcess := <-eachCPUProcessChan:
+				cpuProcessChan <- cpuProcess
+				logs.GetCesLogger().Debugf("GetTop5CpuProcessList send cpuProcess to channel successfully(PID:%d).", pid)
+			case <-time.After(time.Duration(cesUtils.Top5ProcessSamplePeriodInSeconds+3) * time.Second):
+				logs.GetCesLogger().Errorf("GetTop5CpuProcessList get cpu percent timeout(PID:%d)", pid)
+			}
+		}(eachProcess)
+	}
+	wg.Wait()
+	close(cpuProcessChan)
+	for p := range cpuProcessChan {
+		// 兼容采集进程CPU信息时进程已经退出的情况
+		if p != nil {
+			top5CpuProcessList = append(top5CpuProcessList, p)
+		}
+	}
+
+	logs.GetCesLogger().Debugf("GetTop5CpuProcessList finish getting all process cpu percent, all process list is: %s", top5CpuProcessList.String())
+	sort.Sort(top5CpuProcessList)
+	var resultList CPUProcessList
+	for _, p := range top5CpuProcessList {
+		createTime, createTimeErr := p.Process.CreateTime()
 		if createTimeErr != nil {
 			continue
 		}
-
-		eachCPUProcess.Pname, _ = eachProcess.Name()
-		top5CpuProcessList = append(top5CpuProcessList, eachCPUProcess)
+		p.CreateTime = createTime
+		resultList = append(resultList, p)
+		if len(resultList) >= 5 {
+			break
+		}
 	}
-	sort.Sort(top5CpuProcessList)
-	top5CpuProcessList = top5CpuProcessList[:5]
 
-	for _, oneCPUProcess := range top5CpuProcessList {
+	for _, oneCPUProcess := range resultList {
 		eachProcessInfo := new(ProcessInfo)
 		eachProcessInfo.Pid = oneCPUProcess.Pid
-		eachProcessInfo.Pname = oneCPUProcess.Pname
-		eachProcessInfo.CreateTime = oneCPUProcess.CreateTime
 		eachProcessInfo.Status = true
-		eachProcessInfo.Cmdline = oneCPUProcess.Cmdline
+		eachProcessInfo.CreateTime = oneCPUProcess.CreateTime
+		eachProcessInfo.Pname, _ = oneCPUProcess.Process.Name()
+		eachProcessInfo.Cmdline, _ = oneCPUProcess.Process.Cmdline()
 
 		if len(eachProcessInfo.Cmdline) > cesUtils.MaxCmdlineLen {
 			eachProcessInfo.Cmdline = utils.SubStr(eachProcessInfo.Cmdline, cesUtils.MaxCmdlineLen-len(cesUtils.CmdlineSuffix))
@@ -93,20 +168,22 @@ func GetTop5CpuProcessList() ChProcessList {
 
 		top5ChProcessList = append(top5ChProcessList, eachProcessInfo)
 	}
+
+	logs.GetCesLogger().Debugf("Top 5 process list is: %v", top5ChProcessList.String())
 	return top5ChProcessList
 }
 
 // used for sort by cpu desc
-func (s CPUProcessList) Len() int {
-	return len(s)
+func (c CPUProcessList) Len() int {
+	return len(c)
 }
 
-func (s CPUProcessList) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
+func (c CPUProcessList) Swap(i, j int) {
+	c[i], c[j] = c[j], c[i]
 }
 
-func (s CPUProcessList) Less(i, j int) bool {
-	return s[i].CPU > s[j].CPU
+func (c CPUProcessList) Less(i, j int) bool {
+	return c[i].CPU > c[j].CPU
 }
 
 // BuildProcessInfoByList used to build process info for api request
@@ -135,5 +212,11 @@ func BuildProcessInfoByList(processList ChProcessList) ProcessInfoDB {
 // GenerateHashID generate hashid string by pname and pid
 func GenerateHashID(pname string, pid int32) string {
 	processStr := []byte(pname + strconv.Itoa(int(pid)))
+	return fmt.Sprintf("%x", md5.Sum(processStr))
+}
+
+// GenerateHashIDByPname generate hashid string by pname
+func GenerateHashIDByPname(pname string) string {
+	processStr := []byte(pname)
 	return fmt.Sprintf("%x", md5.Sum(processStr))
 }

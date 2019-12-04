@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	ces_utils "github.com/huaweicloud/telescope/agent/core/ces/utils"
+	cesUtils "github.com/huaweicloud/telescope/agent/core/ces/utils"
 	"github.com/huaweicloud/telescope/agent/core/utils"
 )
 
@@ -15,18 +15,20 @@ const GBConversion = 1024 * 1024 * 1024
 
 // Metric the type for metric data
 type Metric struct {
-	MetricName   string  `json:"metric_name"`
-	MetricValue  float64 `json:"metric_value"`
-	MetricPrefix string  `json:"metric_prefix,omitempty"`
+	MetricName     string  `json:"metric_name"`
+	MetricValue    float64 `json:"metric_value"`
+	MetricPrefix   string  `json:"metric_prefix,omitempty"`
+	CustomProcName string  `json:"custom_proc_name,omitempty"`
 }
 
 // InputMetric the type for input metric
 type InputMetric struct {
 	CollectTime int64    `json:"collect_time"`
+	Type        string   `json:"-"`
 	Data        []Metric `json:"data"`
 }
 
-// InputMetricSlice the type for input metric sclice
+// InputMetricSlice the type for input metric slice
 type InputMetricSlice []*InputMetric
 
 // DimensionType the type for dimension
@@ -35,18 +37,20 @@ type DimensionType struct {
 	Value string `json:"value"`
 }
 
-type CesMeticExtraInfo struct {
+// CesMetricExtraInfo ...
+type CesMetricExtraInfo struct {
 	OriginMetricName string `json:"origin_metric_name"`
 	MetricPrefix     string `json:"metric_prefix,omitempty"`
 	MetricType       string `json:"metric_type,omitempty"`
+	CustomProcName   string `json:"custom_proc_name,omitempty"`
 }
 
 // MetricType the type for metric
 type MetricType struct {
-	Namespace       string             `json:"namespace"`
-	Dimensions      []DimensionType    `json:"dimensions"`
-	MetricName      string             `json:"metric_name"`
-	MetricExtraInfo *CesMeticExtraInfo `json:"extra_info,omitempty"`
+	Namespace       string              `json:"namespace"`
+	Dimensions      []DimensionType     `json:"dimensions"`
+	MetricName      string              `json:"metric_name"`
+	MetricExtraInfo *CesMetricExtraInfo `json:"extra_info,omitempty"`
 }
 
 // CesMetricData the type for post metric data
@@ -61,68 +65,106 @@ type CesMetricData struct {
 // CesMetricDataArr the type for metric data array
 type CesMetricDataArr []CesMetricData
 
+// CesEventData  ...
+type CesEventData struct {
+	EventName   string         `json:"event_name"`
+	EventSource string         `json:"event_source,omitempty"`
+	Time        int64          `json:"time"`
+	Detail      CesEventDetail `json:"detail"`
+}
+
+// CesEventDetail ...
+type CesEventDetail struct {
+	Content      string `json:"content,omitempty"`
+	GroupID      string `json:"group_id,omitempty"`
+	ResourceID   string `json:"resource_id,omitempty"`
+	ResourceName string `json:"resource_name"`
+	EventState   string `json:"event_state"`
+	EventLevel   string `json:"event_level"`
+	EventUser    string `json:"event_user"`
+	EventType    string `json:"event_type,omitempty"`
+}
+
+// CesEventDataArr ...
+type CesEventDataArr []CesEventData
+
 var metricUnitMap = map[string]string{
-	"cpu_usage":                      "%",
-	"cpu_usage_user":                 "%",
-	"cpu_usage_system":               "%",
-	"cpu_usage_idle":                 "%",
-	"cpu_usage_other":                "%",
-	"cpu_usage_nice":                 "%",
-	"cpu_usage_iowait":               "%",
-	"cpu_usage_irq":                  "%",
-	"cpu_usage_softirq":              "%",
-	"cpu_usage_steal":                "%",
-	"cpu_usage_guest":                "%",
-	"cpu_usage_guest_nice":           "%",
-	"mem_total":                      "GB",
-	"mem_available":                  "GB",
-	"mem_used":                       "GB",
-	"mem_free":                       "GB",
-	"mem_usedPercent":                "%",
-	"mem_buffers":                    "GB",
-	"mem_cached":                     "GB",
-	"net_bitSent":                    "bit/s",
-	"net_bitRecv":                    "bit/s",
-	"net_packetSent":                 "Count/s",
-	"net_packetRecv":                 "Count/s",
-	"net_errin":                      "%",
-	"net_errout":                     "%",
-	"net_dropin":                     "%",
-	"net_dropout":                    "%",
-	"net_fifoin":                     "Bytes",
-	"net_fifoout":                    "Bytes",
-	"disk_total":                     "GB",
-	"disk_free":                      "GB",
-	"disk_used":                      "GB",
-	"disk_usedPercent":               "%",
-	"disk_inodesTotal":               "",
-	"disk_inodesUsed":                "",
-	"disk_inodesFree":                "",
-	"disk_inodesUsedPercent":         "%",
+	//cpu
+	"cpu_usage":                      "%",//linux  windows
+	"cpu_usage_user":                 "%",//linux  windows
+	"cpu_usage_system":               "%",//linux  windows
+	"cpu_usage_idle":                 "%",//linux  windows
+	"cpu_usage_other":                "%",//linux  windows
+	"cpu_usage_nice":                 "%",//linux
+	"cpu_usage_iowait":               "%",//linux
+	"cpu_usage_irq":                  "%",//linux
+	"cpu_usage_softirq":              "%",//linux
+	//	"cpu_usage_steal":                "%",
+	//	"cpu_usage_guest":                "%",
+	//	"cpu_usage_guest_nice":           "%",
+
+	//mem
+	"mem_available":                  "GB",//linux   windows
+	"mem_usedPercent":                "%", //linux   windows
+	"mem_free":                       "GB",//linux
+	"mem_buffers":                    "GB",//linux
+	"mem_cached":                     "GB",//linux
+	//	"mem_total":                      "GB",
+	//	"mem_used":                       "GB",
+
+	//net
+	"net_bitSent":                    "bit/s",    //linux   windows
+	"net_bitRecv":                    "bit/s",    //linux   windows
+	"net_packetSent":                 "Count/s",  //linux   windows
+	"net_packetRecv":                 "Count/s",  //linux   windows
+	"net_errin":                      "%",        //linux   windows
+	"net_errout":                     "%",        //linux   windows
+	"net_dropin":                     "%",        //linux   windows
+	"net_dropout":                    "%",        //linux   windows
+	//	"net_fifoin":                     "Bytes",
+	//	"net_fifoout":                    "Bytes",
+
+	//disk
+	"disk_total":                     "GB",       //linux   windows
+	"disk_free":                      "GB",       //linux   windows
+	"disk_used":                      "GB",       //linux   windows
+	"disk_usedPercent":               "%",        //linux   windows
+	"disk_agt_read_bytes_rate":       "Byte/s",   //linux   windows
+	"disk_agt_read_requests_rate":    "Request/s",//linux   windows
+	"disk_agt_write_bytes_rate":      "Byte/s",   //linux   windows
+	"disk_agt_write_requests_rate":   "Request/s",//linux   windows
+	"disk_inodesTotal":               "",         //linux
+	"disk_inodesUsed":                "",         //linux
+	"disk_inodesUsedPercent":         "%",        //linux
+	"disk_writeTime":                 "ms/Count", //linux
+	"disk_readTime":                  "ms/Count", //linux
+	"disk_ioUtils":                   "%",        //linux
+	"disk_fs_rwstate":                "",         //linux
+	"disk_queue_length":              "Count",    //linux
+	"disk_write_bytes_per_operation": "KB/op",    //linux
+	"disk_read_bytes_per_operation":  "KB/op",    //linux
+	"disk_io_svctm":                  "ms/op",    //linux
 	"disk_writeBytes":                "Bytes",
 	"disk_readBytes":                 "Bytes",
-	"disk_iopsInProgress":            "Bytes",
-	"disk_agt_read_bytes_rate":       "Byte/s",
-	"disk_agt_read_requests_rate":    "Request/s",
-	"disk_agt_write_bytes_rate":      "Byte/s",
-	"disk_agt_write_requests_rate":   "Request/s",
-	"disk_writeTime":                 "ms/Count",
-	"disk_readTime":                  "ms/Count",
-	"disk_ioUtils":                   "%",
-	"disk_fs_rwstate":                "",
-	"proc_cpu":                       "%",
-	"proc_mem":                       "%",
-	"proc_file":                      "Count",
+	//	"disk_inodesFree":                "",
+	//	"disk_iopsInProgress":            "Bytes",
+
+	//proc
+	"proc_cpu":                       "%",    //linux   windows
+	"proc_mem":                       "%",    //linux   windows
+	"proc_specified_count":           "Count",//linux   windows
+	"proc_total_count":               "Count",//linux   windows
+	"proc_file":                      "Count",//linux
+	//	"proc_count_spicified":           "Count",
+
+	//gpu
 	"gpu_performance_state":          "",
 	"gpu_usage_gpu":                  "%",
 	"gpu_usage_mem":                  "%",
-	"disk_queue_length":              "Count",
-	"disk_write_bytes_per_operation": "KB/op",
-	"disk_read_bytes_per_operation":  "KB/op",
-	"disk_io_svctm":                  "ms/op",
+
 }
 
-// BuildMetric build metric as input metric
+// BuildMetric build metric as input metricpro
 func BuildMetric(collectTime int64, data []Metric) *InputMetric {
 	return &InputMetric{
 		CollectTime: collectTime,
@@ -132,26 +174,28 @@ func BuildMetric(collectTime int64, data []Metric) *InputMetric {
 
 // BuildCesMetricData build ces metric data
 func BuildCesMetricData(inputMetric *InputMetric, isAggregated bool) CesMetricDataArr {
-	var dimension DimensionType
-	var metricTTL int
-	var cesMetricDataArr CesMetricDataArr
+	var (
+		dimension        DimensionType
+		metricTTL        int
+		cesMetricDataArr CesMetricDataArr
+	)
 
-	dimension.Name = ces_utils.DimensionName
+	dimension.Name = cesUtils.DimensionName
 	dimension.Value = utils.GetConfig().InstanceId
 	dimensions := make([]DimensionType, 1)
 	dimensions[0] = dimension
 	collectTime := inputMetric.CollectTime
-	namespace := ces_utils.NameSpace
+	namespace := cesUtils.NameSpace
 
 	externalNamespace := utils.GetConfig().ExternalService
-	if externalNamespace == ces_utils.ExternalServiceBMS {
-		namespace = externalNamespace
+	if utils.GetConfig().BmsFlag || externalNamespace == cesUtils.ExternalServiceBMS {
+		namespace = cesUtils.ExternalServiceBMS
 	}
 
 	if isAggregated {
-		metricTTL = ces_utils.TTLTwoDay
+		metricTTL = cesUtils.TTLTwoDay
 	} else {
-		metricTTL = ces_utils.TTLOneHour
+		metricTTL = cesUtils.TTLOneHour
 	}
 
 	for _, metric := range inputMetric.Data {
@@ -160,19 +204,19 @@ func BuildCesMetricData(inputMetric *InputMetric, isAggregated bool) CesMetricDa
 		newMetricData.Metric.Dimensions = dimensions
 
 		newMetricData.Metric.MetricName = metric.MetricName
-		//metric name has two info ; use hashid and {metricname,MetricPrefix} replace it
-		if metric.MetricPrefix != "" && strings.HasPrefix(metric.MetricPrefix, ces_utils.VolumePrefix) {
+		// metric name has two info ; use hashid and {metricname,MetricPrefix} replace it
+		if metric.MetricPrefix != "" && strings.HasPrefix(metric.MetricPrefix, cesUtils.VolumePrefix) {
 			newMetricData.Metric.MetricName = generateHashID(metric.MetricPrefix + metric.MetricName)
-			newMetricData.Metric.MetricExtraInfo = &CesMeticExtraInfo{OriginMetricName: metric.MetricName, MetricPrefix: strings.Replace(metric.MetricPrefix, ces_utils.VolumePrefix, "", -1), MetricType: "volume"}
+			newMetricData.Metric.MetricExtraInfo = &CesMetricExtraInfo{OriginMetricName: metric.MetricName, MetricPrefix: strings.Replace(metric.MetricPrefix, cesUtils.VolumePrefix, "", -1), MetricType: "volume"}
 		} else if metric.MetricPrefix != "" {
 			newMetricData.Metric.MetricName = generateHashID(metric.MetricPrefix + metric.MetricName)
-			newMetricData.Metric.MetricExtraInfo = &CesMeticExtraInfo{OriginMetricName: metric.MetricName, MetricPrefix: metric.MetricPrefix}
+			newMetricData.Metric.MetricExtraInfo = &CesMetricExtraInfo{OriginMetricName: metric.MetricName, MetricPrefix: metric.MetricPrefix, CustomProcName: metric.CustomProcName}
 		} else {
 			// almost for metric name is too long, no scene now, if metric get in the follow logic, it's a new metric
 			aliasName := AliasMetricName(metric.MetricName)
 			if aliasName != "" {
 				newMetricData.Metric.MetricName = aliasName
-				newMetricData.Metric.MetricExtraInfo = &CesMeticExtraInfo{OriginMetricName: metric.MetricName}
+				newMetricData.Metric.MetricExtraInfo = &CesMetricExtraInfo{OriginMetricName: metric.MetricName}
 			}
 		}
 
@@ -192,37 +236,25 @@ func BuildCesMetricData(inputMetric *InputMetric, isAggregated bool) CesMetricDa
 }
 
 func getOldMetricName(metricName, MetricPrefix string) string {
-
-	if MetricPrefix == "" {
+	switch {
+	case MetricPrefix == "":
 		return metricName
-	}
-
-	//disk metric
-	if strings.HasPrefix(metricName, "disk_") {
+	case strings.HasPrefix(metricName, "disk_"):
 		diskPrefix := GetMountPrefix(MetricPrefix)
 		return diskPrefix + metricName
-	}
-
-	//proc metric
-	if strings.HasPrefix(metricName, "proc_") {
+	case strings.HasPrefix(metricName, "proc_"):
 		metricSuffix := strings.Split(metricName, "proc")[1]
 		return "proc_" + MetricPrefix + metricSuffix
-	}
-
-	//gpu metric
-	if strings.HasPrefix(metricName, "gpu_") {
+	case strings.HasPrefix(metricName, "gpu_"):
 		return "slot" + MetricPrefix + "_" + metricName
-	}
-
-	//raid metric
-	if strings.HasSuffix(metricName, "_device") && strings.HasPrefix(MetricPrefix, "md") {
+	case strings.HasPrefix(MetricPrefix, "md") && strings.HasSuffix(metricName, "_device"):
 		return MetricPrefix + "_" + metricName
+	default:
+		return ""
 	}
-
-	return ""
 }
 
-//if needed set an old metric data for transition
+// if needed set an old metric data for transition
 func setOldMetricData(cesMetricDataArr CesMetricDataArr, originMetricData CesMetricData, metric Metric) CesMetricDataArr {
 	// disk:slAsH
 	// gpu:slot
@@ -237,15 +269,15 @@ func setOldMetricData(cesMetricDataArr CesMetricDataArr, originMetricData CesMet
 	if oldMetricName != "" && oldMetricName != metric.MetricName {
 
 		oldMetricData := originMetricData
-		//init for old metric data
+		// init for old metric data
 		oldMetricData.Metric.MetricExtraInfo = nil
 		oldMetricData.Metric.MetricName = oldMetricName
 
 		aliasName := AliasMetricName(oldMetricData.Metric.MetricName)
-		//like disk metric name, need to add extro_info
+		// like disk metric name, need to add extro_info
 		if aliasName != "" {
 			oldMetricData.Metric.MetricName = aliasName
-			oldMetricData.Metric.MetricExtraInfo = &CesMeticExtraInfo{OriginMetricName: oldMetricName}
+			oldMetricData.Metric.MetricExtraInfo = &CesMetricExtraInfo{OriginMetricName: oldMetricName}
 		}
 
 		cesMetricDataArr = append(cesMetricDataArr, oldMetricData)
@@ -254,9 +286,10 @@ func setOldMetricData(cesMetricDataArr CesMetricDataArr, originMetricData CesMet
 	return cesMetricDataArr
 }
 
+// AliasMetricName ...
 func AliasMetricName(metricName string) string {
 
-	//more char: . and - and  ~ and /
+	// more char: . and - and  ~ and /
 	pattern := "^([0-9A-Za-z]|_|/)*(-|~|\\.|/){1,}([0-9A-Za-z]|_|/|-|~|\\.)*$"
 	match, _ := regexp.MatchString(pattern, metricName)
 
@@ -284,13 +317,14 @@ func getUnitByMetric(metricName string) string {
 
 }
 
+// GetMountPrefix ...
 func GetMountPrefix(name string) string {
 	slashFlag := "SlAsH"
 	// for linux
-	diskPrefix := strings.Replace(name, "/", slashFlag, -1)
+	diskPrefix := strings.Replace(name, utils.SLASH, slashFlag, -1)
 	// for windows
 	diskPrefix = strings.Replace(diskPrefix, ":", "", -1)
-	// "_" used to seperate metricName from mountPoint
+	// "_" used to separate metricName from mountPoint
 	diskPrefix = diskPrefix + "_"
 
 	return diskPrefix

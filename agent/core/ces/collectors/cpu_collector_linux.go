@@ -2,6 +2,8 @@ package collectors
 
 import (
 	"github.com/huaweicloud/telescope/agent/core/ces/model"
+	"github.com/huaweicloud/telescope/agent/core/ces/utils"
+	"github.com/huaweicloud/telescope/agent/core/logs"
 	"github.com/shirou/gopsutil/cpu"
 )
 
@@ -25,40 +27,38 @@ type CPUCollector struct {
 }
 
 func getTotalCPUTime(t cpu.TimesStat) float64 {
-	total := t.User + t.System + t.Nice + t.Iowait + t.Irq + t.Softirq + t.Steal +
-		t.Idle
+	total := t.User + t.System + t.Nice + t.Iowait + t.Irq + t.Softirq + t.Steal + t.Idle
 	return total
 }
 
 // Collect implement the cpu Collector
 func (c *CPUCollector) Collect(collectTime int64) *model.InputMetric {
+	cpuStats, err := cpu.Times(false)
+	if nil != err || len(cpuStats) == 0 {
+		logs.GetCesLogger().Errorf("get cpu stat error %v", err)
+		return nil
+	}
 
-	var result model.InputMetric
-
-	cpuTimes, _ := cpu.Times(false)
-
-	totalCPUTime := getTotalCPUTime(cpuTimes[0])
-
-	nowStates := new(CPUStates)
-
-	nowStates.user = cpuTimes[0].User
-	nowStates.guest = cpuTimes[0].Guest
-	nowStates.system = cpuTimes[0].System
-	nowStates.idle = cpuTimes[0].Idle
-	nowStates.other = 1 - (cpuTimes[0].User - cpuTimes[0].Guest) - cpuTimes[0].System - cpuTimes[0].Idle
-
-	nowStates.nice = cpuTimes[0].Nice
-	nowStates.iowait = cpuTimes[0].Iowait
-	nowStates.irq = cpuTimes[0].Irq
-	nowStates.softirq = cpuTimes[0].Softirq
-
-	nowStates.totalCPUTime = getTotalCPUTime(cpuTimes[0])
+	stat := cpuStats[0]
+	nowStates := &CPUStates{
+		user:         stat.User,
+		guest:        stat.Guest,
+		system:       stat.System,
+		idle:         stat.Idle,
+		other:        1 - (stat.User - stat.Guest) - stat.System - stat.Idle,
+		nice:         stat.Nice,
+		iowait:       stat.Iowait,
+		irq:          stat.Irq,
+		softirq:      stat.Softirq,
+		totalCPUTime: getTotalCPUTime(stat),
+	}
 
 	if c.LastStates == nil {
 		c.LastStates = nowStates
 		return nil
 	}
 
+	totalCPUTime := getTotalCPUTime(stat)
 	totalDelta := totalCPUTime - c.LastStates.totalCPUTime
 
 	cpuUsageUser := 100 * (nowStates.user - c.LastStates.user - (nowStates.guest - c.LastStates.guest)) / totalDelta
@@ -73,19 +73,21 @@ func (c *CPUCollector) Collect(collectTime int64) *model.InputMetric {
 	c.LastStates = nowStates
 
 	fieldsG := []model.Metric{
-		model.Metric{MetricName: "cpu_usage_user", MetricValue: cpuUsageUser},
-		model.Metric{MetricName: "cpu_usage_system", MetricValue: cpuUsageSystem},
-		model.Metric{MetricName: "cpu_usage_idle", MetricValue: cpuUsageIdle},
-		model.Metric{MetricName: "cpu_usage_other", MetricValue: 100 - cpuUsageUser - cpuUsageSystem - cpuUsageIdle},
-		model.Metric{MetricName:"cpu_usage", MetricValue: 100 - cpuUsageIdle},
+		{MetricName: "cpu_usage_user", MetricValue: cpuUsageUser},
+		{MetricName: "cpu_usage_system", MetricValue: cpuUsageSystem},
+		{MetricName: "cpu_usage_idle", MetricValue: cpuUsageIdle},
+		{MetricName: "cpu_usage_other", MetricValue: utils.GetNonNegative(100 - cpuUsageUser - cpuUsageSystem - cpuUsageIdle)},
+		{MetricName: "cpu_usage", MetricValue: utils.GetNonNegative(100 - cpuUsageIdle)},
 
-		model.Metric{MetricName: "cpu_usage_nice", MetricValue: cpuUsageNice},
-		model.Metric{MetricName: "cpu_usage_iowait", MetricValue: cpuUsageIOWait},
-		model.Metric{MetricName: "cpu_usage_irq", MetricValue: cpuUsageIrq},
-		model.Metric{MetricName: "cpu_usage_softirq", MetricValue: cpuUsageSoftirq},
+		{MetricName: "cpu_usage_nice", MetricValue: cpuUsageNice},
+		{MetricName: "cpu_usage_iowait", MetricValue: cpuUsageIOWait},
+		{MetricName: "cpu_usage_irq", MetricValue: cpuUsageIrq},
+		{MetricName: "cpu_usage_softirq", MetricValue: cpuUsageSoftIrq},
 	}
-	result.Data = fieldsG
-	result.CollectTime = collectTime
 
-	return &result
+	return &model.InputMetric{
+		Data:        fieldsG,
+		Type:        "cpu",
+		CollectTime: collectTime,
+	}
 }
