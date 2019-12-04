@@ -1,5 +1,5 @@
 package collectors
-
+ 
 import (
 	"errors"
 	"strings"
@@ -12,12 +12,12 @@ import (
 	"github.com/huaweicloud/telescope/agent/core/utils"
 	"github.com/shirou/gopsutil/disk"
 )
-
+ 
 // DiskCollector is the collector type for disk metric
 type DiskCollector struct {
 	DiskMap sync.Map
 }
-
+ 
 // DiskIOCountersStat is the type for store disk IO data
 type DiskIOCountersStat struct {
 	collectTime     int64
@@ -31,7 +31,7 @@ type DiskIOCountersStat struct {
 	ioTime          float64
 	weightedIO      float64
 }
-
+ 
 // Collect implement the disk Collector
 func (d *DiskCollector) Collect(collectTime int64) *model.InputMetric {
 	var (
@@ -104,7 +104,7 @@ func (d *DiskCollector) Collect(collectTime int64) *model.InputMetric {
 
 	result.Data = fieldsG
 	result.CollectTime = collectTime
-
+ 
 	return &result
 }
 
